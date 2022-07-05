@@ -13,13 +13,26 @@ ADronePawn::ADronePawn()
 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	CollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision component"));
-	CollisionComponent->SetBoxExtent(FVector(200, 200, 100));
+	CollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
+	CollisionComponent->SetBoxExtent(FVector(50, 50, 20));
 	CollisionComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
 	RootComponent = CollisionComponent;
 
-	MovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UFloatingPawnMovement>(TEXT("Movement component"));
-	MovementComponent->SetUpdatedComponent(CollisionComponent);
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Static mesh"));
+	StaticMeshComponent->SetupAttachment(RootComponent);
+	
+	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skeletal mesh"));
+	SkeletalMeshComponent->SetupAttachment(RootComponent);
+
+	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
+	CameraComponent->SetupAttachment(RootComponent);
+	CameraComponent->SetRelativeLocation(FVector(50, 0, 0));
+
+	bUseControllerRotationYaw = 1;
+	CameraComponent->bUsePawnControlRotation = 1;
+
+	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UFloatingPawnMovement>(TEXT("Movement component"));
+	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
 }
 
 // Called when the game starts or when spawned

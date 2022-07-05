@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
 #include "GameFramework/MovementComponent.h"
 #include "GameFramework/Pawn.h"
@@ -18,9 +19,18 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UBoxComponent* CollisionComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UStaticMeshComponent* StaticMeshComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	USkeletalMeshComponent* SkeletalMeshComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UCameraComponent* CameraComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UPawnMovementComponent* MovementComponent;
+	UPawnMovementComponent* PawnMovementComponent;
 	
 	ADronePawn();
 
