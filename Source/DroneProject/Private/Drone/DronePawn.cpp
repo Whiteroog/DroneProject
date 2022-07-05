@@ -3,6 +3,7 @@
 
 #include "Drone/DronePawn.h"
 
+#include "Drone/DroneMovementComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PawnMovementComponent.h"
@@ -31,7 +32,7 @@ ADronePawn::ADronePawn()
 	bUseControllerRotationYaw = 1;
 	CameraComponent->bUsePawnControlRotation = 1;
 
-	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UFloatingPawnMovement>(TEXT("Movement component"));
+	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
 }
 
