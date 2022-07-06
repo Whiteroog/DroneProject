@@ -29,8 +29,6 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		AlphaSpeedDrone = 0.0f;
 		Velocity = FVector::ZeroVector;
 	}
-
-	GEngine->AddOnScreenDebugMessage(1, 1.0f, FColor::Green, FString::Printf(TEXT("Speed: %f"), Velocity.Size()));
 	
 	const FVector Delta = Velocity * DeltaTime;
 	if (!Delta.IsNearlyZero(1e-6f))
@@ -43,10 +41,20 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		{
 			HandleImpact(Hit, DeltaTime, Delta);
 			SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
+
+			Rebound(Hit);
 		}
 	}
 
 	UpdateComponentVelocity();
+
+	GEngine->AddOnScreenDebugMessage(1, 1.0f, FColor::Green, FString::Printf(TEXT("Speed: %f"), Velocity.Size()));
+}
+
+void UDroneMovementComponent::Rebound(const FHitResult &Hit)
+{
+	Velocity = FVector::ZeroVector;
+	AlphaSpeedDrone = 0.0f;
 }
 
 void UDroneMovementComponent::SmoothChangeSpeed(FVector EndVector, float DeltaTime)

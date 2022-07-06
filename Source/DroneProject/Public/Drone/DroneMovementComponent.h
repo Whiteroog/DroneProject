@@ -16,6 +16,8 @@ class DRONEPROJECT_API UDroneMovementComponent : public UPawnMovementComponent
 	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	void Rebound(const FHitResult &Hit);
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement|Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
