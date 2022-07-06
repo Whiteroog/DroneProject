@@ -25,19 +25,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Speed", meta = (ClampMin = 0.2f, UIMin = 0.2f, ClampMax = 1.5f, UIMax = 1.5f))
 	float Acceleration = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 0.2f, UIMin = 0.2f, ClampMax = 1.5f, UIMax = 1.5f))
-	float PushForce = 2.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 0.2f, UIMin = 0.2f, ClampMax = 1.5f, UIMax = 1.5f))
-	float ValueTriggerReflection = 400.0f;
-
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	// bool bIsGravity = true;
 
 private:
-	void SmoothChangeSpeed(FVector DesireVelocity, float DeltaTime);
+	void SmoothChangeSpeed(FVector EndVector, float DeltaTime);
 	float AlphaSpeedDrone = 0.0f;
-	FVector LastDesireVelocity = FVector::ZeroVector;
-
-	float DecelerationAfterPush = 0.5f;
+	FVector LastEndVector = FVector::ZeroVector;
 };
