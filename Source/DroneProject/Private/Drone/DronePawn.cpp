@@ -7,6 +7,29 @@
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PawnMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+
+SmoothChangeRotation::SmoothChangeRotation(APawn* Pawn, float Acceleration)
+{
+	this->Pawn = Pawn;
+	this->Acceleration = Acceleration;
+}
+
+void SmoothChangeRotation::ChangePosition(float DeltaTime, FRotator TargetRotation)
+{
+	if(LastDesireRotation != TargetRotation)
+	{
+		LastDesireRotation = TargetRotation;
+		AlphaSpeedRotation = 0.0f;
+	}
+	
+	AlphaSpeedRotation += Acceleration * DeltaTime;
+	AlphaSpeedRotation = FMath::Clamp(AlphaSpeedRotation, 0.0f, 1.0f);
+
+	FRotator ActorRotation = FMath::Lerp(Pawn->GetActorRotation(), TargetRotation, 0.05f);
+
+	Pawn->SetActorRotation(ActorRotation);
+}
 
 // Sets default values
 ADronePawn::ADronePawn()
@@ -25,12 +48,18 @@ ADronePawn::ADronePawn()
 	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skeletal mesh"));
 	SkeletalMeshComponent->SetupAttachment(RootComponent);
 
+	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring arm"));
+	SpringArmComponent->SetupAttachment(RootComponent);
+	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	CameraComponent->SetupAttachment(RootComponent);
+	CameraComponent->SetupAttachment(SpringArmComponent);
 	CameraComponent->SetRelativeLocation(FVector(50, 0, 0));
 
-	bUseControllerRotationYaw = 1;
-	CameraComponent->bUsePawnControlRotation = 1;
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationYaw = true;
+	bUseControllerRotationRoll = false;
+	CameraComponent->bUsePawnControlRotation = false;
+	SpringArmComponent->bUsePawnControlRotation = true;
 
 	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
@@ -46,13 +75,26 @@ void ADronePawn::BeginPlay()
 void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetActorRotation().Yaw, GetActorRotation().Roll));
 }
 
 void ADronePawn::MoveForward(float Value)
 {
 	if (Value != 0.0f)
 	{
-		AddMovementInput(GetActorForwardVector(), Value);
+		SmoothChangeForwardRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
+		
+		// SetActorRotation(FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
+
+		FRotator YawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		FVector ForwardVector = YawRotator.RotateVector(FVector::ForwardVector);
+
+		AddMovementInput(ForwardVector, Value);
+	}
+	else
+	{
+		SmoothChangeForwardRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(0.0f, GetActorRotation().Yaw, GetActorRotation().Roll));
 	}
 }
 
@@ -60,7 +102,18 @@ void ADronePawn::MoveRight(float Value)
 {
 	if (Value != 0.0f)
 	{
-		AddMovementInput(GetActorRightVector(), Value);
+		SmoothChangeRightRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
+
+		// SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
+
+		FRotator PitchYawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		FVector RightVector = PitchYawRotator.RotateVector(FVector::RightVector);
+
+		AddMovementInput(RightVector, Value);
+	}
+	else
+	{
+		SmoothChangeRightRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.0f));
 	}
 }
 
@@ -68,7 +121,26 @@ void ADronePawn::MoveUp(float Value)
 {
 	if (Value != 0.0f)
 	{
-		AddMovementInput(GetActorUpVector(), Value);
+		FRotator PitchYawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		FVector UpVector = PitchYawRotator.RotateVector(FVector::UpVector);
+		
+		AddMovementInput(UpVector, Value);
+	}
+}
+
+void ADronePawn::Turn(float Value)
+{
+	if(Value != 0.0f)
+	{
+		AddControllerYawInput(RotationRate.Yaw * Value * GetWorld()->GetDeltaSeconds());
+	}
+}
+
+void ADronePawn::LookUp(float Value)
+{
+	if(Value != 0.0f)
+	{
+		AddControllerPitchInput(RotationRate.Pitch * Value * GetWorld()->GetDeltaSeconds());
 	}
 }
 
@@ -80,6 +152,6 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAxis("MoveForward", this, &ADronePawn::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ADronePawn::MoveRight);
 	PlayerInputComponent->BindAxis("MoveUp", this, &ADronePawn::MoveUp);
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("Turn", this, &ADronePawn::Turn);
+	PlayerInputComponent->BindAxis("LookUp", this, &ADronePawn::LookUp);
 }

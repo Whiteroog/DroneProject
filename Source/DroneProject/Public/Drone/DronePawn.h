@@ -9,6 +9,20 @@
 #include "GameFramework/Pawn.h"
 #include "DronePawn.generated.h"
 
+class SmoothChangeRotation
+{
+public:
+	APawn* Pawn;
+	
+	float AlphaSpeedRotation = 0.0f;
+	float Acceleration = 1.0f;
+	FRotator LastDesireRotation = FRotator::ZeroRotator;
+
+	SmoothChangeRotation(APawn* Pawn, float Acceleration = 1.0f);
+
+	void ChangePosition(float DeltaTime, FRotator TargetRotation);
+};
+
 UCLASS()
 class DRONEPROJECT_API ADronePawn : public APawn
 {
@@ -17,20 +31,38 @@ class DRONEPROJECT_API ADronePawn : public APawn
 public:
 	// Sets default values for this pawn's properties
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UBoxComponent* CollisionComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UStaticMeshComponent* StaticMeshComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	USkeletalMeshComponent* SkeletalMeshComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	class USpringArmComponent* SpringArmComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UCameraComponent* CameraComponent;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UPawnMovementComponent* PawnMovementComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Controls")
+	FRotator RotationRate = FRotator(45.0f, 45.0f, 0.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle")
+	float ForwardAngle = -45.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle")
+	float RightAngle = 45.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle")
+	float TiltSpeed = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 1000.0f, UIMax = 1000.0f))
+	float Acceleration = 1.0f;
 	
 	ADronePawn();
 
@@ -42,9 +74,16 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+protected:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void MoveUp(float Value);
+	void Turn(float Value);
+	void LookUp(float Value);
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+private:
+	SmoothChangeRotation SmoothChangeForwardRotation = SmoothChangeRotation(this, Acceleration);
+	SmoothChangeRotation SmoothChangeRightRotation = SmoothChangeRotation(this, Acceleration);
 };
