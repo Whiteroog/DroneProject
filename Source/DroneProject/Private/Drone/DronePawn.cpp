@@ -9,28 +9,6 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
-SmoothChangeRotation::SmoothChangeRotation(APawn* Pawn, float Acceleration)
-{
-	this->Pawn = Pawn;
-	this->Acceleration = Acceleration;
-}
-
-void SmoothChangeRotation::ChangePosition(float DeltaTime, FRotator TargetRotation)
-{
-	if(LastDesireRotation != TargetRotation)
-	{
-		LastDesireRotation = TargetRotation;
-		AlphaSpeedRotation = 0.0f;
-	}
-	
-	AlphaSpeedRotation += Acceleration * DeltaTime;
-	AlphaSpeedRotation = FMath::Clamp(AlphaSpeedRotation, 0.0f, 1.0f);
-
-	FRotator ActorRotation = FMath::Lerp(Pawn->GetActorRotation(), TargetRotation, 0.05f);
-
-	Pawn->SetActorRotation(ActorRotation);
-}
-
 // Sets default values
 ADronePawn::ADronePawn()
 {
@@ -83,18 +61,17 @@ void ADronePawn::MoveForward(float Value)
 {
 	if (Value != 0.0f)
 	{
-		SmoothChangeForwardRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
 		
 		// SetActorRotation(FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
 
-		FRotator YawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
-		FVector ForwardVector = YawRotator.RotateVector(FVector::ForwardVector);
-
+		const FRotator YawRotator = FRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		const FVector ForwardVector = YawRotator.RotateVector(FVector::ForwardVector);
 		AddMovementInput(ForwardVector, Value);
 	}
 	else
 	{
-		SmoothChangeForwardRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(0.0f, GetActorRotation().Yaw, GetActorRotation().Roll));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(0.0f, GetActorRotation().Yaw, GetActorRotation().Roll));
 	}
 }
 
@@ -102,18 +79,17 @@ void ADronePawn::MoveRight(float Value)
 {
 	if (Value != 0.0f)
 	{
-		SmoothChangeRightRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
 
 		// SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
 
-		FRotator PitchYawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
-		FVector RightVector = PitchYawRotator.RotateVector(FVector::RightVector);
-
+		const FRotator YawRotator = FRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		const FVector RightVector = YawRotator.RotateVector(FVector::RightVector);
 		AddMovementInput(RightVector, Value);
 	}
 	else
 	{
-		SmoothChangeRightRotation.ChangePosition(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.0f));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.0f));
 	}
 }
 
@@ -121,9 +97,8 @@ void ADronePawn::MoveUp(float Value)
 {
 	if (Value != 0.0f)
 	{
-		FRotator PitchYawRotator(0.0f, GetControlRotation().Yaw, 0.0f);
-		FVector UpVector = PitchYawRotator.RotateVector(FVector::UpVector);
-		
+		const FRotator YawRotator = FRotator(0.0f, GetControlRotation().Yaw, 0.0f);
+		const FVector UpVector = YawRotator.RotateVector(FVector::UpVector);
 		AddMovementInput(UpVector, Value);
 	}
 }
@@ -154,4 +129,11 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAxis("MoveUp", this, &ADronePawn::MoveUp);
 	PlayerInputComponent->BindAxis("Turn", this, &ADronePawn::Turn);
 	PlayerInputComponent->BindAxis("LookUp", this, &ADronePawn::LookUp);
+}
+
+void ADronePawn::ChangeRotation(float DeltaTime, FRotator TargetRotation)
+{
+	FRotator NewRotation = FMath::Lerp(GetActorRotation(), TargetRotation, RotationAcceleration * DeltaTime);
+
+	SetActorRotation(NewRotation);
 }

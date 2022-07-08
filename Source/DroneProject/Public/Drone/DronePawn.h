@@ -9,20 +9,6 @@
 #include "GameFramework/Pawn.h"
 #include "DronePawn.generated.h"
 
-class SmoothChangeRotation
-{
-public:
-	APawn* Pawn;
-	
-	float AlphaSpeedRotation = 0.0f;
-	float Acceleration = 1.0f;
-	FRotator LastDesireRotation = FRotator::ZeroRotator;
-
-	SmoothChangeRotation(APawn* Pawn, float Acceleration = 1.0f);
-
-	void ChangePosition(float DeltaTime, FRotator TargetRotation);
-};
-
 UCLASS()
 class DRONEPROJECT_API ADronePawn : public APawn
 {
@@ -58,11 +44,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle")
 	float RightAngle = 45.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle")
-	float TiltSpeed = 5.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 1000.0f, UIMax = 1000.0f))
-	float Acceleration = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
+	float RotationAcceleration = 1.0f;
 	
 	ADronePawn();
 
@@ -84,6 +67,6 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 private:
-	SmoothChangeRotation SmoothChangeForwardRotation = SmoothChangeRotation(this, Acceleration);
-	SmoothChangeRotation SmoothChangeRightRotation = SmoothChangeRotation(this, Acceleration);
+	void ChangeRotation(float DeltaTime, FRotator TargetRotation);
+	
 };

@@ -16,19 +16,9 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	const FVector PendingInput = GetPendingInputVector().GetClampedToMaxSize(1.0f);
 	ConsumeInputVector();
 
-	if (!PendingInput.IsNearlyZero())
-	{
-		SmoothChangeSpeed(PendingInput * MaxSpeed, DeltaTime);
-	}
-	else if (!Velocity.IsNearlyZero())
-	{
-		SmoothChangeSpeed(FVector::ZeroVector, DeltaTime);
-	}
-	else
-	{
-		AlphaSpeedDrone = 0.0f;
-		Velocity = FVector::ZeroVector;
-	}
+	const float SpeedForce = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
+	const FVector SpeedVector = PendingInput * SpeedForce;
+	Velocity = FMath::Lerp(Velocity, SpeedVector, SpeedAcceleration * DeltaTime);
 	
 	const FVector Delta = Velocity * DeltaTime;
 	if (!Delta.IsNearlyZero(1e-6f))
@@ -61,18 +51,5 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 void UDroneMovementComponent::Rebound(const FHitResult &Hit)
 {
 	Velocity = Velocity - 2 * (Hit.ImpactNormal * (Velocity * Hit.ImpactNormal)); // Reflection Vector
-	Velocity *= PushForce;
-	AlphaSpeedDrone *= DecelerationAfterPush;
-}
-
-void UDroneMovementComponent::SmoothChangeSpeed(FVector DesireVelocity, float DeltaTime)
-{
-	if (LastDesireVelocity != DesireVelocity)
-	{
-		LastDesireVelocity = DesireVelocity;
-		AlphaSpeedDrone = 0.0f;
-	}
-	AlphaSpeedDrone += Acceleration * DeltaTime;
-	AlphaSpeedDrone = FMath::Clamp(AlphaSpeedDrone, 0.0f, 1.0f);
-	Velocity = FMath::Lerp(Velocity, DesireVelocity, AlphaSpeedDrone);
+	Velocity *= ReboundForce;
 }
