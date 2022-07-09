@@ -26,18 +26,18 @@ ADronePawn::ADronePawn()
 	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skeletal mesh"));
 	SkeletalMeshComponent->SetupAttachment(RootComponent);
 
-	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring arm"));
-	SpringArmComponent->SetupAttachment(RootComponent);
+	// SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring arm"));
+	// SpringArmComponent->SetupAttachment(RootComponent);
 	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	CameraComponent->SetupAttachment(SpringArmComponent);
-	CameraComponent->SetRelativeLocation(FVector(50, 0, 0));
+	CameraComponent->SetupAttachment(RootComponent);
+	CameraComponent->SetRelativeLocation(FVector(20, 0, -4));
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	CameraComponent->bUsePawnControlRotation = false;
-	SpringArmComponent->bUsePawnControlRotation = true;
+	// SpringArmComponent->bUsePawnControlRotation = true;
 
 	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
@@ -56,14 +56,17 @@ void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
+	CameraComponent->SetWorldRotation(FRotator(GetControlRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
+	
+	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetActorRotation().Yaw, GetActorRotation().Roll));
+	GEngine->AddOnScreenDebugMessage(3, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetControlRotation().Pitch, GetControlRotation().Yaw, GetControlRotation().Roll));
 }
 
 void ADronePawn::MoveForward(float Value)
 {
 	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
 	{
-		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(-ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
 		
 		// SetActorRotation(FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
 
@@ -110,6 +113,11 @@ void ADronePawn::Turn(float Value)
 	if(Value != 0.0f)
 	{
 		AddControllerYawInput(RotationRate.Yaw * Value * GetWorld()->GetDeltaSeconds());
+		
+		FRotator ControlRotation = GetControlRotation();
+		ControlRotation.Yaw = AngleClamp(ControlRotation.Yaw,  GetActorRotation().Yaw - CameraAngleYawLimit, GetActorRotation().Yaw + CameraAngleYawLimit);
+		GEngine->AddOnScreenDebugMessage(5, 1.0f, FColor::Green, FString::Printf(TEXT("End Clamp: %f"), ControlRotation.Yaw));
+		Controller->SetControlRotation(ControlRotation);
 	}
 }
 
@@ -118,6 +126,10 @@ void ADronePawn::LookUp(float Value)
 	if(Value != 0.0f)
 	{
 		AddControllerPitchInput(RotationRate.Pitch * Value * GetWorld()->GetDeltaSeconds());
+
+		FRotator ControlRotation = GetControlRotation();
+		ControlRotation.Pitch = AngleClamp(ControlRotation.Pitch,  GetActorRotation().Pitch - CameraAnglePitchLimit, GetActorRotation().Pitch + CameraAnglePitchLimit);
+		Controller->SetControlRotation(ControlRotation);
 	}
 }
 
@@ -135,11 +147,80 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 void ADronePawn::ChangeRotation(float DeltaTime, FRotator TargetRotation)
 {
+	float Alpha = RotationAcceleration * DeltaTime;
 	if(CachedDroneMovementComponent->IsLanded())
 	{
 		TargetRotation.Yaw = GetActorRotation().Yaw;
+		Alpha = CachedDroneMovementComponent->GetBraking();
 	}
 	
-	FRotator NewRotation = FMath::Lerp(GetActorRotation(), TargetRotation, RotationAcceleration * DeltaTime);
+	FRotator NewRotation = FMath::Lerp(GetActorRotation(), TargetRotation, Alpha);
 	SetActorRotation(NewRotation);
+}
+
+float ADronePawn::AngleClamp(float Angle, float Min, float Max)
+{
+	bool bMinIsClamped = false;
+	bool bMaxIsClamped = false;
+
+	const float CachedMin = Min;
+	const float CachedMax = Max;
+	
+	Min = FRotator::ClampAxis(Min);
+	Max = FRotator::ClampAxis(Max);
+
+	if(!FMath::IsNearlyEqual(CachedMin, Min))
+	{
+		bMinIsClamped = true;
+	}
+
+	if(!FMath::IsNearlyEqual(CachedMax, Max))
+	{
+		bMaxIsClamped = true;
+	}
+
+	if(bMinIsClamped && bMaxIsClamped)
+	{
+		bMinIsClamped = false;
+		bMaxIsClamped = false;
+	}
+
+	// GEngine->AddOnScreenDebugMessage(4, 1.0f, FColor::Green, FString::Printf(TEXT("Clamp: %f, %f, %f, %i, %i"), Angle, Min, Max, bMinIsClamped, bMaxIsClamped));
+	
+	if(bMinIsClamped)
+	{
+		float DeltaClampedMin = Min - Angle;
+		float DeltaClampedMax = Angle - Max;
+		
+		if(Angle < Min)
+		{			
+			if(Angle > Max)
+			{
+				return DeltaClampedMin < DeltaClampedMax ? Min : Max;
+			}
+		}
+	}
+	else if(bMaxIsClamped)
+	{
+		float DeltaClampedMin = Min - Angle;
+		float DeltaClampedMax = Angle - Max;
+		
+		if(Angle > Max)
+		{
+			if(Angle < Min)
+			{
+				return DeltaClampedMax < DeltaClampedMin ? Max : Min;
+			}
+		}
+	}
+	else if(Angle < Min)
+	{
+		return Min;
+	}
+	else if(Angle > Max)
+	{
+		return Max;
+	}
+
+	return Angle;
 }

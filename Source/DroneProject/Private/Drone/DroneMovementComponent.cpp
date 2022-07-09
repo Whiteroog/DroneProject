@@ -16,12 +16,24 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	const FVector PendingInput = GetPendingInputVector().GetClampedToMaxSize(1.0f);
 	ConsumeInputVector();
 
-	const float SpeedForce = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
-	const FVector SpeedVector = PendingInput * SpeedForce;
-	Velocity = FMath::Lerp(Velocity, SpeedVector, SpeedAcceleration * DeltaTime);
+	if(PendingInput.Z > 0.1)
+		bIsLanded = false;
 
-	OnGround();
+	FVector SpeedVector = FVector::ZeroVector;
+	float Alpha = SpeedAcceleration * DeltaTime;
 	
+	if(bIsLanded)
+	{
+		Velocity.Z = 0.0f;
+		Alpha = Braking;
+	}
+	else
+	{
+		const float SpeedForce = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
+		SpeedVector = PendingInput * SpeedForce;
+	}
+
+	Velocity = FMath::Lerp(Velocity, SpeedVector, Alpha);
 	const FVector Delta = Velocity * DeltaTime;
 	if (!Delta.IsNearlyZero(1e-6f))
 	{
@@ -57,15 +69,4 @@ void UDroneMovementComponent::Rebound(const FHitResult &Hit)
 {
 	Velocity = Velocity - 2 * (Hit.ImpactNormal * (Velocity * Hit.ImpactNormal)); // Reflection Vector
 	Velocity *= ReboundForce;
-}
-
-void UDroneMovementComponent::OnGround()
-{
-	if(Velocity.Z > 0.1)
-		bIsLanded = false;
-	
-	if(bIsLanded)
-	{
-		Velocity = FVector::ZeroVector;
-	}
 }
