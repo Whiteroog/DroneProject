@@ -18,6 +18,9 @@ class DRONEPROJECT_API UDroneMovementComponent : public UPawnMovementComponent
 
 	void Rebound(const FHitResult &Hit);
 
+public:
+	FORCEINLINE bool IsLanded() const { return bIsLanded; }
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement|Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
@@ -30,5 +33,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 100.0f, UIMin = 100.0f, ClampMax = 1000.0f, UIMax = 1000.0f))
 	float ValueTriggerReflection = 400.0f;
-	
+
+private:
+	bool bIsLanded = false;
+	void OnGround();
 };

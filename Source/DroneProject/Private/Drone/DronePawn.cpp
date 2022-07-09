@@ -34,13 +34,15 @@ ADronePawn::ADronePawn()
 	CameraComponent->SetRelativeLocation(FVector(50, 0, 0));
 
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = true;
+	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	CameraComponent->bUsePawnControlRotation = false;
 	SpringArmComponent->bUsePawnControlRotation = true;
 
 	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
+
+	CachedDroneMovementComponent = StaticCast<UDroneMovementComponent*>(PawnMovementComponent);
 }
 
 // Called when the game starts or when spawned
@@ -54,14 +56,14 @@ void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetActorRotation().Yaw, GetActorRotation().Roll));
+	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
 }
 
 void ADronePawn::MoveForward(float Value)
 {
-	if (Value != 0.0f)
+	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
 	{
-		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
 		
 		// SetActorRotation(FRotator(ForwardAngle * Value, GetActorRotation().Yaw, GetActorRotation().Roll));
 
@@ -77,10 +79,10 @@ void ADronePawn::MoveForward(float Value)
 
 void ADronePawn::MoveRight(float Value)
 {
-	if (Value != 0.0f)
+	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
 	{
-		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
-
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, RightAngle * Value));
+		
 		// SetActorRotation(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, RightAngle * Value));
 
 		const FRotator YawRotator = FRotator(0.0f, GetControlRotation().Yaw, 0.0f);
@@ -89,7 +91,7 @@ void ADronePawn::MoveRight(float Value)
 	}
 	else
 	{
-		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.0f));
+		ChangeRotation(GetWorld()->GetDeltaSeconds(), FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, 0.0f));
 	}
 }
 
@@ -133,7 +135,11 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 void ADronePawn::ChangeRotation(float DeltaTime, FRotator TargetRotation)
 {
+	if(CachedDroneMovementComponent->IsLanded())
+	{
+		TargetRotation.Yaw = GetActorRotation().Yaw;
+	}
+	
 	FRotator NewRotation = FMath::Lerp(GetActorRotation(), TargetRotation, RotationAcceleration * DeltaTime);
-
 	SetActorRotation(NewRotation);
 }

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DroneMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
 #include "GameFramework/MovementComponent.h"
@@ -68,5 +69,5 @@ protected:
 
 private:
 	void ChangeRotation(float DeltaTime, FRotator TargetRotation);
-	
+	TWeakObjectPtr<UDroneMovementComponent> CachedDroneMovementComponent;
 };
