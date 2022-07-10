@@ -48,10 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
 	float RotationAcceleration = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
 	float CameraAnglePitchLimit = 45.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
 	float CameraAngleYawLimit = 25.0f;
 	
 	ADronePawn();

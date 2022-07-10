@@ -164,57 +164,32 @@ float ADronePawn::AngleClampWithPivot(float Angle, float Pivot, float Left, floa
 {
 	Angle = FRotator::ClampAxis(Angle);
 	Pivot = FRotator::ClampAxis(Pivot);
-
-	Left = FMath::Abs(Left);
-	Right = FMath::Abs(Right);
 	
-	bool LeftDeviationIsTurned = false;
-	bool RightDeviationIsTurned = false;
+	Left = FRotator::ClampAxis(Pivot - FMath::Abs(Left));
+	Right = FRotator::ClampAxis(Pivot + FMath::Abs(Right));
 
-	bool AngleIsTurned = false;
-
-	// если разница между текущем углом поворота и фиксированным будет больше диапазона для Clamp, то Angle совершил оборот 
-	if(FMath::Abs(Angle - Pivot) > FMath::Abs(Left + Right))
+	if(Left > Right) // пограничный случай с 0
 	{
-		AngleIsTurned = true;
-	}
-	
-	float LeftDeviation = Pivot - Left;
-	float RightDeviation = Pivot + Right;
-	
-	if(FRotator::ClampAxis(LeftDeviation) != LeftDeviation)
-	{
-		LeftDeviationIsTurned = true;
-	}
-	LeftDeviation = FRotator::ClampAxis(LeftDeviation);
+		if(Left > Angle && Angle > Right) // неопределенность
+		{
+			const float DeltaLeftAngle = Left - Angle;
+			const float DeltaRightAngle = Angle - Right;
 
-	if(FRotator::ClampAxis(RightDeviation) != RightDeviation)
-	{
-		RightDeviationIsTurned = true;
-	}
-	RightDeviation = FRotator::ClampAxis(RightDeviation);
+			return DeltaLeftAngle < DeltaRightAngle ? Left : Right;
+		}
 
-	float Delta = Angle - LeftDeviation;
-
-	// Если Pivot справа 0, но ограничение слева, то добавить 360, пока угол не стал левее 0
-	// Если Pivot слева 0 с ограничением, но угол правее 0, то добавить 360
-	Delta += (LeftDeviationIsTurned && !AngleIsTurned) | (!LeftDeviationIsTurned && AngleIsTurned) ? 360.0f : 0.0f;
-	
-	if(Delta < 0.0f)
-	{
-		return LeftDeviation;
+		return Angle;
 	}
 
-	Delta = RightDeviation - Angle;
-
-	// Если Pivot слева 0, но ограничение справа, то добавить 360, пока угол не стал правее 0
-	// Если Pivot справа 0 с ограничением, но угол левее 0, то добавить 360
-	Delta += (RightDeviationIsTurned && !AngleIsTurned) | (!RightDeviationIsTurned && AngleIsTurned) ? 360.0f : 0.0f;
-
-	if(Delta < 0.0f)
+	if (Angle < Left)
 	{
-		return RightDeviation;
+		return Left;
 	}
 	
+	if (Right < Angle)
+	{
+		return Right;
+	}
+
 	return Angle;
 }
