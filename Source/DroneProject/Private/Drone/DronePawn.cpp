@@ -58,8 +58,8 @@ void ADronePawn::Tick(float DeltaTime)
 
 	CameraComponent->SetWorldRotation(FRotator(GetControlRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
 	
-	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetActorRotation().Yaw, GetActorRotation().Roll));
-	GEngine->AddOnScreenDebugMessage(3, 1.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f, %f, %f"), GetControlRotation().Pitch, GetControlRotation().Yaw, GetControlRotation().Roll));
+	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Actor Rotation: %f, %f, %f"), GetActorRotation().Pitch, GetActorRotation().Yaw, GetActorRotation().Roll));
+	GEngine->AddOnScreenDebugMessage(3, 1.0f, FColor::Red, FString::Printf(TEXT("Controller Rotation: %f, %f, %f"), GetControlRotation().Pitch, GetControlRotation().Yaw, GetControlRotation().Roll));
 }
 
 void ADronePawn::MoveForward(float Value)
@@ -115,8 +115,7 @@ void ADronePawn::Turn(float Value)
 		AddControllerYawInput(RotationRate.Yaw * Value * GetWorld()->GetDeltaSeconds());
 		
 		FRotator ControlRotation = GetControlRotation();
-		ControlRotation.Yaw = AngleClamp(ControlRotation.Yaw,  GetActorRotation().Yaw - CameraAngleYawLimit, GetActorRotation().Yaw + CameraAngleYawLimit);
-		GEngine->AddOnScreenDebugMessage(5, 1.0f, FColor::Green, FString::Printf(TEXT("End Clamp: %f"), ControlRotation.Yaw));
+		ControlRotation.Yaw = AngleClampWithPivot(ControlRotation.Yaw, GetActorRotation().Yaw,  CameraAngleYawLimit, CameraAngleYawLimit);
 		Controller->SetControlRotation(ControlRotation);
 	}
 }
@@ -128,7 +127,7 @@ void ADronePawn::LookUp(float Value)
 		AddControllerPitchInput(RotationRate.Pitch * Value * GetWorld()->GetDeltaSeconds());
 
 		FRotator ControlRotation = GetControlRotation();
-		ControlRotation.Pitch = AngleClamp(ControlRotation.Pitch,  GetActorRotation().Pitch - CameraAnglePitchLimit, GetActorRotation().Pitch + CameraAnglePitchLimit);
+		ControlRotation.Pitch = AngleClampWithPivot(ControlRotation.Pitch,  GetActorRotation().Pitch, CameraAnglePitchLimit, CameraAnglePitchLimit);
 		Controller->SetControlRotation(ControlRotation);
 	}
 }
@@ -158,69 +157,64 @@ void ADronePawn::ChangeRotation(float DeltaTime, FRotator TargetRotation)
 	SetActorRotation(NewRotation);
 }
 
-float ADronePawn::AngleClamp(float Angle, float Min, float Max)
+// Pivot - точка отклонения
+// Left - отклонение влево от Pivot
+// Right - отклонение вправо от Pivot
+float ADronePawn::AngleClampWithPivot(float Angle, float Pivot, float Left, float Right)
 {
-	bool bMinIsClamped = false;
-	bool bMaxIsClamped = false;
+	Angle = FRotator::ClampAxis(Angle);
+	Pivot = FRotator::ClampAxis(Pivot);
 
-	const float CachedMin = Min;
-	const float CachedMax = Max;
+	Left = FMath::Abs(Left);
+	Right = FMath::Abs(Right);
 	
-	Min = FRotator::ClampAxis(Min);
-	Max = FRotator::ClampAxis(Max);
+	bool LeftDeviationIsTurned = false;
+	bool RightDeviationIsTurned = false;
 
-	if(!FMath::IsNearlyEqual(CachedMin, Min))
+	bool AngleIsTurned = false;
+
+	// если разница между текущем углом поворота и фиксированным будет больше диапазона для Clamp, то Angle совершил оборот 
+	if(FMath::Abs(Angle - Pivot) > FMath::Abs(Left + Right))
 	{
-		bMinIsClamped = true;
+		AngleIsTurned = true;
 	}
-
-	if(!FMath::IsNearlyEqual(CachedMax, Max))
-	{
-		bMaxIsClamped = true;
-	}
-
-	if(bMinIsClamped && bMaxIsClamped)
-	{
-		bMinIsClamped = false;
-		bMaxIsClamped = false;
-	}
-
-	// GEngine->AddOnScreenDebugMessage(4, 1.0f, FColor::Green, FString::Printf(TEXT("Clamp: %f, %f, %f, %i, %i"), Angle, Min, Max, bMinIsClamped, bMaxIsClamped));
 	
-	if(bMinIsClamped)
+	float LeftDeviation = Pivot - Left;
+	float RightDeviation = Pivot + Right;
+	
+	if(FRotator::ClampAxis(LeftDeviation) != LeftDeviation)
 	{
-		float DeltaClampedMin = Min - Angle;
-		float DeltaClampedMax = Angle - Max;
-		
-		if(Angle < Min)
-		{			
-			if(Angle > Max)
-			{
-				return DeltaClampedMin < DeltaClampedMax ? Min : Max;
-			}
-		}
+		LeftDeviationIsTurned = true;
 	}
-	else if(bMaxIsClamped)
+	LeftDeviation = FRotator::ClampAxis(LeftDeviation);
+
+	if(FRotator::ClampAxis(RightDeviation) != RightDeviation)
 	{
-		float DeltaClampedMin = Min - Angle;
-		float DeltaClampedMax = Angle - Max;
-		
-		if(Angle > Max)
-		{
-			if(Angle < Min)
-			{
-				return DeltaClampedMax < DeltaClampedMin ? Max : Min;
-			}
-		}
+		RightDeviationIsTurned = true;
 	}
-	else if(Angle < Min)
+	RightDeviation = FRotator::ClampAxis(RightDeviation);
+
+	float Delta = Angle - LeftDeviation;
+
+	// Если Pivot справа 0, но ограничение слева, то добавить 360, пока угол не стал левее 0
+	// Если Pivot слева 0 с ограничением, но угол правее 0, то добавить 360
+	Delta += (LeftDeviationIsTurned && !AngleIsTurned) | (!LeftDeviationIsTurned && AngleIsTurned) ? 360.0f : 0.0f;
+	
+	if(Delta < 0.0f)
 	{
-		return Min;
-	}
-	else if(Angle > Max)
-	{
-		return Max;
+		return LeftDeviation;
 	}
 
+	Delta = RightDeviation - Angle;
+
+	// Если Pivot слева 0, но ограничение справа, то добавить 360, пока угол не стал правее 0
+	// Если Pivot справа 0 с ограничением, но угол левее 0, то добавить 360
+	Delta += (RightDeviationIsTurned && !AngleIsTurned) | (!RightDeviationIsTurned && AngleIsTurned) ? 360.0f : 0.0f;
+
+	if(Delta < 0.0f)
+	{
+		return RightDeviation;
+	}
+	
 	return Angle;
 }

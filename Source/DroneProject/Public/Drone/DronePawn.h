@@ -77,5 +77,5 @@ private:
 	void ChangeRotation(float DeltaTime, FRotator TargetRotation);
 	TWeakObjectPtr<UDroneMovementComponent> CachedDroneMovementComponent;
 
-	float AngleClamp(float Angle, float Min, float Max);
+	float AngleClampWithPivot(float Angle, float Pivot, float Left, float Right);
 };
