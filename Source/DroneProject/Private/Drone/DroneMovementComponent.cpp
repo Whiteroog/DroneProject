@@ -1,13 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
+#include "Drone/DronePawn.h"
 #include "Drone/DroneMovementComponent.h"
 
 void UDroneMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	checkf(GetOwner()->IsA<ADronePawn>(), "UDroneMovementComponent ONLY work with ADronePawn class");
+	
 	CachedDrone = StaticCast<ADronePawn*>(GetOwner());
 }
 
@@ -24,11 +23,19 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// Получаем входящий вектор (и очищаем), нормализуя до единичной длины
 	const FVector PendingInput = ConsumeInputVector().GetClampedToMaxSize(1.0f);
 
-	// Если входящий вектор вниз,то винты не работают и дрон падает под действием гравитации
-	const FVector NewVelocity = PendingInput * (GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed);
+	
+	if(CachedDrone->GetLastInputValue().Up > 0.1)
+		bIsLanded = false;
 
+	// Если входящий вектор вниз,то винты не работают и дрон падает под действием гравитации
+	const FVector NewVelocity = PendingInput * (CachedDrone->GetLastInputValue().Up < -0.1 ? -GetGravityZ() : MaxSpeed);
+	
 	// Векторная интерполяция
-	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, SpeedAcceleration);
+	Velocity = FMath::Lerp(Velocity, NewVelocity, CachedDrone->GetDroneAcceleration());
+
+	// Если на земле, то не пытаемся пролететь сквозь нее
+	if(bIsLanded)
+		Velocity.Z = 0.0f;
 
 	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
@@ -47,6 +54,9 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 			{
 				HandleImpact(Hit, DeltaTime, Delta);
 				SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
+
+				if(FMath::IsNearlyZero(Hit.ImpactNormal.Z, 0.1f))
+					bIsLanded = true;
 			}
 			else
 			{

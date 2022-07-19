@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DronePawn.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "DroneMovementComponent.generated.h"
 
@@ -22,13 +21,11 @@ public:
 
 	void Rebound(const FHitResult &Hit);
 
+	FORCEINLINE bool IsLanded() const { return bIsLanded; }
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement|Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
-
-	// Ускорение
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Speed", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
-	float SpeedAcceleration = 1.0f;
 
 	// Торможение
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Speed", meta = (ClampMin = 0.1f, UIMin = 0.1f, ClampMax = 100.0f, UIMax = 100.0f))
@@ -44,4 +41,6 @@ protected:
 
 private:
 	TWeakObjectPtr<class ADronePawn> CachedDrone;
+
+	bool bIsLanded = false;
 };
