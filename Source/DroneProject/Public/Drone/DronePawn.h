@@ -6,17 +6,8 @@
 #include "DroneMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
-#include "Components/TimelineComponent.h"
 #include "GameFramework/Pawn.h"
 #include "DronePawn.generated.h"
-
-struct FLastInputValue
-{
-	float Forward = 0.0f;
-	float Right = 0.0f;
-	float Up = 0.0f;
-	float Turn = 0.0f;
-};
 
 UCLASS()
 class DRONEPROJECT_API ADronePawn : public APawn
@@ -39,23 +30,20 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UPawnMovementComponent* PawnMovementComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UCurveFloat* CurveAccelerationDrone;
-
 	// Скорость вращения
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Controls")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Controls")
 	FRotator RotationRate = FRotator(45.0f, 45.0f, 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
 	float ForwardAngle = 45.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
-	float RightAngle = 45.0f;
+	float RightAngle = 25.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraYawAngleLimit = 25.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	float CameraYawAngleLimit = 45.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
 	float CameraPitchAngleLimit = 45.0f;
 	
 	ADronePawn();
@@ -70,8 +58,6 @@ public:
 
 	FORCEINLINE float GetDroneAcceleration() const { return Acceleration; }
 
-	FORCEINLINE FLastInputValue GetLastInputValue() const { return LastInputValue; }
-
 protected:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
@@ -81,16 +67,13 @@ protected:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
+	float Acceleration = 2.0f;
+	
 private:
 	TWeakObjectPtr<class UDroneMovementComponent> CachedDroneMovementComponent;
 
-	FTimeline DroneTimeLine;
-	float Acceleration = 1.0f;
-	void DroneTimeLineUpdateComponent(float Output);
-
-	FLastInputValue LastInputValue;
-
-	void ChangeAngleDrone(FRotator TargetRotation);
+	void ChangeAngleDrone(float DeltaTime, FRotator TargetRotation);
 
 	FORCEINLINE FRotator GetParallelGroundRotation() const { return FRotator(0.0f, GetControlRotation().Yaw, 0.0f); }
 };

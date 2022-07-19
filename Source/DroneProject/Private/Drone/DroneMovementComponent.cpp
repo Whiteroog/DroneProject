@@ -24,14 +24,14 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	const FVector PendingInput = ConsumeInputVector().GetClampedToMaxSize(1.0f);
 
 	
-	if(CachedDrone->GetLastInputValue().Up > 0.1)
+	if(GetLastInputVector().Z > 0.1)
 		bIsLanded = false;
 
 	// Если входящий вектор вниз,то винты не работают и дрон падает под действием гравитации
-	const FVector NewVelocity = PendingInput * (CachedDrone->GetLastInputValue().Up < -0.1 ? -GetGravityZ() : MaxSpeed);
+	const FVector NewVelocity = PendingInput * (GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed);
 	
 	// Векторная интерполяция
-	Velocity = FMath::Lerp(Velocity, NewVelocity, CachedDrone->GetDroneAcceleration());
+	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime,CachedDrone->GetDroneAcceleration());
 
 	// Если на земле, то не пытаемся пролететь сквозь нее
 	if(bIsLanded)

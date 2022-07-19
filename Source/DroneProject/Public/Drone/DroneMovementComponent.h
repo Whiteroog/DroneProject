@@ -27,10 +27,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement|Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
 
-	// Торможение
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Speed", meta = (ClampMin = 0.1f, UIMin = 0.1f, ClampMax = 100.0f, UIMax = 100.0f))
-	float Braking = 10.0f;
-
 	// Торможение после отскока от стены
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 0.2f, UIMin = 0.2f, ClampMax = 1.0f, UIMax = 1.0f))
 	float ReboundForce = 0.8f;

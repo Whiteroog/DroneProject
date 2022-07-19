@@ -43,40 +43,24 @@ ADronePawn::ADronePawn()
 void ADronePawn::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Используется TimeLine, чтобы поведение дрона было контролируемым
-	if(IsValid(CurveAccelerationDrone))
-	{
-		FOnTimelineFloatStatic DroneTimeLineUpdate;
-		DroneTimeLineUpdate.BindUObject(this, &ADronePawn::DroneTimeLineUpdateComponent);
-		DroneTimeLine.AddInterpFloat(CurveAccelerationDrone,DroneTimeLineUpdate);
-	}
 }
 
 // Called every frame
 void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-	DroneTimeLine.TickTimeline(DeltaTime);
-	
+
 	CameraComponent->SetWorldRotation(FRotator(GetControlRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
-	
-	GEngine->AddOnScreenDebugMessage(2, 1.0f, FColor::Red, FString::Printf(TEXT("Acceleration: %f"), GetDroneAcceleration()));
 }
 
 void ADronePawn::MoveForward(float Value)
 {
-	// Если изменения при вводе, то поведение дрона должно быть с задержкой
-	if(LastInputValue.Forward != Value)
-	{
-		DroneTimeLine.PlayFromStart();
-	}
+	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
-	if (Value != 0.0f)
+	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
 	{
 		// Изменяем крен
-		ChangeAngleDrone(FRotator(-ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
+		ChangeAngleDrone(DeltaTime, FRotator(-ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
 
 		// Но не изменяем вектор направления
 		const FVector ForwardVector = GetParallelGroundRotation().RotateVector(FVector::ForwardVector);
@@ -85,48 +69,34 @@ void ADronePawn::MoveForward(float Value)
 	else
 	{
 		// Возвращение в стабильное параллельное положение
-		ChangeAngleDrone(FRotator(0.0f, GetControlRotation().Yaw, GetActorRotation().Roll));
+		ChangeAngleDrone(DeltaTime, FRotator(0.0f, GetControlRotation().Yaw, GetActorRotation().Roll));
 	}
-
-	LastInputValue.Forward = Value;
 }
 
 void ADronePawn::MoveRight(float Value)
 {
-	if(LastInputValue.Right != Value)
-	{
-		DroneTimeLine.PlayFromStart();
-	}
+	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
-	if (Value != 0.0f)
+	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
 	{
-		ChangeAngleDrone(FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, RightAngle * Value));
+		ChangeAngleDrone(DeltaTime, FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, RightAngle * Value));
 		
 		const FVector RightVector = GetParallelGroundRotation().RotateVector(FVector::RightVector);
 		AddMovementInput(RightVector, Value);
 	}
 	else
 	{
-		ChangeAngleDrone(FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, 0.0f));
+		ChangeAngleDrone(DeltaTime, FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, 0.0f));
 	}
-
-	LastInputValue.Right = Value;
 }
 
 void ADronePawn::MoveUp(float Value)
 {
-	if(LastInputValue.Up != Value)
-	{
-		DroneTimeLine.PlayFromStart();
-	}
-	
 	if (Value != 0.0f)
 	{
 		const FVector UpVector = GetParallelGroundRotation().RotateVector(FVector::UpVector);
 		AddMovementInput(UpVector, Value);
 	}
-
-	LastInputValue.Up = Value;
 }
 
 void ADronePawn::Turn(float Value)
@@ -138,14 +108,16 @@ void ADronePawn::Turn(float Value)
 		const float SpeedTurn = RotationRate.Yaw * Value * DeltaTime;
 		AddControllerYawInput(SpeedTurn);
 
+		// Когда летим и поворачивая камерой. Косметический наклон
+		if(GetLastMovementInputVector().X != 0 || GetLastMovementInputVector().Y != 0)
+			ChangeAngleDrone(DeltaTime, FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, RightAngle * Value));
+
 		FRotator ControlRotation = GetControlRotation();
 		const float MinAngleDegrees = GetActorRotation().Yaw - CameraYawAngleLimit;
 		const float MaxAngleDegrees = GetActorRotation().Yaw + CameraYawAngleLimit;
 		ControlRotation.Yaw = FMath::ClampAngle(ControlRotation.Yaw, MinAngleDegrees, MaxAngleDegrees);
 		Controller->SetControlRotation(ControlRotation);
 	}
-
-	LastInputValue.Turn = Value;
 }
 
 void ADronePawn::LookUp(float Value)
@@ -154,7 +126,8 @@ void ADronePawn::LookUp(float Value)
 	
 	if(Value != 0.0f)
 	{
-		AddControllerPitchInput(RotationRate.Pitch * Value * DeltaTime);
+		const float SpeedLookUp = RotationRate.Pitch * Value * DeltaTime;
+		AddControllerPitchInput(SpeedLookUp);
 		
 		FRotator ControlRotation = GetControlRotation();
 		const float MinAngleDegrees = GetActorRotation().Pitch - CameraPitchAngleLimit;
@@ -176,20 +149,14 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAxis("LookUp", this, &ADronePawn::LookUp);
 }
 
-// Получение значение из Curve
-void ADronePawn::DroneTimeLineUpdateComponent(float Output)
-{
-	Acceleration = Output;
-}
-
 // Изменение угла наклона дрона
-void ADronePawn::ChangeAngleDrone(FRotator TargetRotation)
+void ADronePawn::ChangeAngleDrone(float DeltaTime, FRotator TargetRotation)
 {
-	// // Если на земле, то заблокировать единственное вращение дрона контроллером
-	// if(CachedDroneMovementComponent->IsLanded())
-	// {
-	// 	TargetRotation.Yaw = GetActorRotation().Yaw; // Подключена только одна ось
-	// }
-	//
-	SetActorRotation(FMath::Lerp(GetActorRotation(), TargetRotation, GetDroneAcceleration()));
+	// Если на земле, то заблокировать единственное вращение дрона контроллером
+	if(CachedDroneMovementComponent->IsLanded())
+	{
+		TargetRotation.Yaw = GetActorRotation().Yaw; // Подключена только одна ось
+	}
+	
+	SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, Acceleration));
 }
