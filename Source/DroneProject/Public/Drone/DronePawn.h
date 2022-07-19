@@ -18,41 +18,38 @@ class DRONEPROJECT_API ADronePawn : public APawn
 public:
 	// Sets default values for this pawn's properties
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UBoxComponent* CollisionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UStaticMeshComponent* StaticMeshComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	USkeletalMeshComponent* SkeletalMeshComponent;
-
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	// class USpringArmComponent* SpringArmComponent;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UCameraComponent* CameraComponent;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UPawnMovementComponent* PawnMovementComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Controls")
 	FRotator RotationRate = FRotator(45.0f, 45.0f, 0.0f);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
 	float ForwardAngle = 45.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
 	float RightAngle = 45.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
 	float RotationAcceleration = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraAnglePitchLimit = 45.0f;
+	float CameraPitchAngleLimit = 45.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraAngleYawLimit = 25.0f;
+	float CameraYawAngleLimit = 25.0f;
 	
 	ADronePawn();
 
@@ -74,8 +71,5 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 private:
-	void ChangeRotation(float DeltaTime, FRotator TargetRotation);
 	TWeakObjectPtr<UDroneMovementComponent> CachedDroneMovementComponent;
-
-	float AngleClampWithPivot(float Angle, float Pivot, float Left, float Right);
 };

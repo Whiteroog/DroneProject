@@ -3,6 +3,14 @@
 
 #include "Drone/DroneMovementComponent.h"
 
+void UDroneMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	checkf(GetOwner()->IsA<ADronePawn>(), "UDroneMovementComponent ONLY work with ADronePawn class");
+	CachedDrone = StaticCast<ADronePawn*>(GetOwner());
+}
+
 void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                             FActorComponentTickFunction* ThisTickFunction)
 {
@@ -13,27 +21,16 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	const FVector PendingInput = GetPendingInputVector().GetClampedToMaxSize(1.0f);
-	ConsumeInputVector();
+	// Получаем входящий вектор (и очищаем), нормализуя до единичной длины
+	const FVector PendingInput = ConsumeInputVector().GetClampedToMaxSize(1.0f);
 
-	if(PendingInput.Z > 0.1)
-		bIsLanded = false;
+	// Если входящий вектор вниз,то винты не работают и дрон падает под действием гравитации
+	const FVector NewVelocity = PendingInput * (GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed);
 
-	FVector SpeedVector = FVector::ZeroVector;
-	float Alpha = SpeedAcceleration * DeltaTime;
-	
-	if(bIsLanded)
-	{
-		Velocity.Z = 0.0f;
-		Alpha = Braking;
-	}
-	else
-	{
-		const float SpeedForce = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
-		SpeedVector = PendingInput * SpeedForce;
-	}
+	// Векторная интерполяция
+	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, SpeedAcceleration);
 
-	Velocity = FMath::Lerp(Velocity, SpeedVector, Alpha);
+	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
 	if (!Delta.IsNearlyZero(1e-6f))
 	{
@@ -45,13 +42,11 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 		if (Hit.IsValidBlockingHit())
 		{
-			if(Velocity.Size() < ValueTriggerReflection)
+			// 
+			if(Velocity.Size() < MaxSpeedForReflection)
 			{
 				HandleImpact(Hit, DeltaTime, Delta);
 				SlideAlongSurface(Delta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-
-				if(-0.1 < Hit.ImpactNormal.Z && Hit.ImpactNormal.Z < 0.1f)
-					bIsLanded = true;
 			}
 			else
 			{
@@ -65,8 +60,9 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	GEngine->AddOnScreenDebugMessage(1, 1.0f, FColor::Green, FString::Printf(TEXT("Speed: %f"), Velocity.Size()));
 }
 
+// Отскок
 void UDroneMovementComponent::Rebound(const FHitResult &Hit)
 {
 	Velocity = Velocity - 2 * (Hit.ImpactNormal * (Velocity * Hit.ImpactNormal)); // Reflection Vector
-	Velocity *= ReboundForce;
+	Velocity *= ReboundForce; // замедление
 }
