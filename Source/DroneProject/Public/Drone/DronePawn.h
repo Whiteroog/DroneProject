@@ -6,7 +6,6 @@
 #include "DroneMovementComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/BoxComponent.h"
-#include "GameFramework/MovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "DronePawn.generated.h"
 
@@ -16,43 +15,36 @@ class DRONEPROJECT_API ADronePawn : public APawn
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this pawn's properties
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UBoxComponent* CollisionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UStaticMeshComponent* StaticMeshComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	USkeletalMeshComponent* SkeletalMeshComponent;
-
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	// class USpringArmComponent* SpringArmComponent;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UCameraComponent* CameraComponent;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UPawnMovementComponent* PawnMovementComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Controls")
+	// Скорость вращения
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Controls")
 	FRotator RotationRate = FRotator(45.0f, 45.0f, 0.0f);
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
 	float ForwardAngle = 45.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
-	float RightAngle = 45.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	float RightAngle = 25.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
-	float RotationAcceleration = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	float CameraYawAngleLimit = 45.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraAnglePitchLimit = 45.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraAngleYawLimit = 25.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	float CameraPitchAngleLimit = 45.0f;
 	
 	ADronePawn();
 
@@ -64,6 +56,8 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	FORCEINLINE float GetDroneAcceleration() const { return Acceleration; }
+
 protected:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
@@ -73,9 +67,13 @@ protected:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Camera", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
+	float Acceleration = 2.0f;
+	
 private:
-	void ChangeRotation(float DeltaTime, FRotator TargetRotation);
-	TWeakObjectPtr<UDroneMovementComponent> CachedDroneMovementComponent;
+	TWeakObjectPtr<class UDroneMovementComponent> CachedDroneMovementComponent;
 
-	float AngleClampWithPivot(float Angle, float Pivot, float Left, float Right);
+	void ChangeAngleDrone(float DeltaTime, FRotator TargetRotation);
+
+	FORCEINLINE FRotator GetParallelGroundRotation() const { return FRotator(0.0f, GetControlRotation().Yaw, 0.0f); }
 };
