@@ -36,6 +36,7 @@ ADronePawn::ADronePawn()
 	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
 
+	checkf(PawnMovementComponent->IsA<UDroneMovementComponent>(), TEXT("Drone working ONLY with UDroneMovementComponent"));
 	CachedDroneMovementComponent = StaticCast<UDroneMovementComponent*>(PawnMovementComponent);
 }
 
@@ -57,7 +58,7 @@ void ADronePawn::MoveForward(float Value)
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
-	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
+	if (Value != 0.0f)
 	{
 		// Изменяем крен
 		ChangeAngleDrone(DeltaTime, FRotator(-ForwardAngle * Value, GetControlRotation().Yaw, GetActorRotation().Roll));
@@ -77,7 +78,7 @@ void ADronePawn::MoveRight(float Value)
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
-	if (Value != 0.0f && !CachedDroneMovementComponent->IsLanded())
+	if (Value != 0.0f)
 	{
 		ChangeAngleDrone(DeltaTime, FRotator(GetActorRotation().Pitch, GetControlRotation().Yaw, RightAngle * Value));
 		
@@ -152,11 +153,5 @@ void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 // Изменение угла наклона дрона
 void ADronePawn::ChangeAngleDrone(float DeltaTime, FRotator TargetRotation)
 {
-	// Если на земле, то заблокировать единственное вращение дрона контроллером
-	if(CachedDroneMovementComponent->IsLanded())
-	{
-		TargetRotation.Yaw = GetActorRotation().Yaw; // Подключена только одна ось
-	}
-	
 	SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, Acceleration));
 }

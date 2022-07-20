@@ -6,7 +6,8 @@
 void UDroneMovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	checkf(GetOwner()->IsA<ADronePawn>(), TEXT("UDroneMovementComponent working ONLY with ADronePawn"));
 	CachedDrone = StaticCast<ADronePawn*>(GetOwner());
 }
 
@@ -36,7 +37,7 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// Если на земле, то не пытаемся пролететь сквозь нее
 	if(bIsLanded)
 		Velocity.Z = 0.0f;
-
+	
 	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
 	if (!Delta.IsNearlyZero(1e-6f))
@@ -49,7 +50,6 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 		if (Hit.IsValidBlockingHit())
 		{
-			// 
 			if(Velocity.Size() < MaxSpeedForReflection)
 			{
 				HandleImpact(Hit, DeltaTime, Delta);
