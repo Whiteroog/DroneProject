@@ -21,8 +21,6 @@ public:
 
 	void Rebound(const FHitResult &Hit);
 
-	FORCEINLINE bool IsLanded() const { return bIsLanded; }
-
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement|Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
@@ -38,5 +36,6 @@ protected:
 private:
 	TWeakObjectPtr<class ADronePawn> CachedDrone;
 
-	bool bIsLanded = false;
+	void MoveComponent(float DeltaTime, FVector Delta, const FRotator NewRotation);
+	void SetVelocity(float DeltaTime);
 };
