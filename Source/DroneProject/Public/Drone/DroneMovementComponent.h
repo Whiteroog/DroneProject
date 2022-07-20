@@ -33,9 +33,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 100.0f, UIMin = 100.0f, ClampMax = 1000.0f, UIMax = 1000.0f))
 	float MaxSpeedForReflection = 400.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Speed", meta = (ClampMin = 1.0f, UIMin = 1.0f, ClampMax = 10.0f, UIMax = 10.0f))
+	float Acceleration = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	float ForwardAngle = 45.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone|Tilt angle", meta = (ClampMin = 25.0f, UIMin = 25.0f, ClampMax = 75.0f, UIMax = 75.0f))
+	float RightAngle = 25.0f;
+
 private:
 	TWeakObjectPtr<class ADronePawn> CachedDrone;
 
 	void MoveComponent(float DeltaTime, FVector Delta, const FRotator NewRotation);
-	void SetVelocity(float DeltaTime);
+	void SetVelocity(float DeltaTime, const FVector InputVector);
+
+	FRotator GetParallelGroundRotation() const;
+
+	FRotator DroneTilt(float DeltaTime, const FVector InputVector) const;
 };
