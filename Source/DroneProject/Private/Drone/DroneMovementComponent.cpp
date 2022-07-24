@@ -27,8 +27,8 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	const FVector PendingInput = ConsumeInputVector().GetClampedToMaxSize(1.0f);
 
 	// Изменение направление и вращение дрона
-	SetVelocity(DeltaTime, PendingInput);
-	const FRotator NewRotation = DroneTilt(DeltaTime, PendingInput);
+	SetVelocityByClamp(DeltaTime, PendingInput);
+	const FRotator NewRotation = DroneTiltByClamp(DeltaTime, PendingInput);
 
 	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
@@ -49,7 +49,7 @@ void UDroneMovementComponent::Rebound(const FHitResult& Hit)
 void UDroneMovementComponent::MoveComponent(float DeltaTime, const FVector Delta, const FRotator NewRotation)
 {
 	// Не двигаемся если есть небольшое отклонение или не поворачиваем камеру
-	if (Delta.IsNearlyZero(1e-6f) && !CachedDrone->GetTurnValue())
+	if (Delta.IsNearlyZero() && NewRotation.IsNearlyZero() && !CachedDrone->GetTurnValue())
 	{
 		return;
 	}
@@ -75,7 +75,7 @@ void UDroneMovementComponent::MoveComponent(float DeltaTime, const FVector Delta
 	}
 }
 
-void UDroneMovementComponent::SetVelocity(float DeltaTime, const FVector InputVector)
+void UDroneMovementComponent::SetVelocityByInterp(float DeltaTime, const FVector InputVector)
 {
 	// Поворачиваем вектор
 	const FVector RotatedInputVector = GetParallelGroundRotation().RotateVector(InputVector);
@@ -84,7 +84,31 @@ void UDroneMovementComponent::SetVelocity(float DeltaTime, const FVector InputVe
 	const FVector NewVelocity = RotatedInputVector * (GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed);
 
 	// Векторная интерполяция
-	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, Acceleration);
+	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, Acceleration); 
+}
+
+// Строгий набор скорости (второй метод)
+// Поворачиваем вектор
+void UDroneMovementComponent::SetVelocityByClamp(float DeltaTime, const FVector InputVector)
+{
+	const float Smoothing = Acceleration * DeltaTime;
+	
+	const FVector Direction = InputVector == FVector::ZeroVector ?
+		Velocity.GetSafeNormal() * -1.0f :								// Чтобы тормозить если есть ускорение
+		GetParallelGroundRotation().RotateVector(InputVector);
+
+	if(Velocity.IsNearlyZero(1.0f) && InputVector == FVector::ZeroVector)
+	{
+		Velocity = FVector::ZeroVector;
+		return;
+	}
+	
+	const float CurrentMaxSpeed = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
+	const FVector Delta = Direction * CurrentMaxSpeed * Smoothing;
+
+	const FVector TargetVelocity = Velocity + Delta;
+
+	Velocity = TargetVelocity.GetClampedToSize(0.0f, CurrentMaxSpeed);
 }
 
 FRotator UDroneMovementComponent::GetParallelGroundRotation() const
@@ -92,9 +116,15 @@ FRotator UDroneMovementComponent::GetParallelGroundRotation() const
 	return FRotator(0.0f, CachedDrone->GetControlRotation().Yaw, 0.0f);
 }
 
-FRotator UDroneMovementComponent::DroneTilt(float DeltaTime, const FVector InputVector) const
+FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVector InputVector) const
 {
-	const FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
+	FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
+
+	if(bLockMeshToCamera)
+	{
+		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
+	}
+	
 	const float TurnValue = CachedDrone->GetTurnValue();
 
 	// Изначальное параллельное положение
@@ -113,6 +143,75 @@ FRotator UDroneMovementComponent::DroneTilt(float DeltaTime, const FVector Input
 			TargetRotation.Roll = RightAngle * TurnValue;
 	}
 
-	GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f | %f"), CurrentRotation.Yaw, TargetRotation.Yaw));
-	return FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, Acceleration);
+	// GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f | %f"), CurrentRotation.Yaw, TargetRotation.Yaw));
+	return FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, AccelerationTurn);
+}
+
+FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVector InputVector) const
+{
+	const float Smoothing = AccelerationTurn * DeltaTime;
+
+	FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
+
+	const float TurnValue = CachedDrone->GetTurnValue();
+
+	if(bLockMeshToCamera)
+	{
+		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
+	}
+
+	const float DeltaYaw = CachedDrone->GetControlRotation().Yaw - FRotator::ClampAxis(CurrentRotation.Yaw);
+
+	GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("DeltaYaw: %f | %f - %f"), DeltaYaw, CachedDrone->GetControlRotation().Yaw, FRotator::ClampAxis(CurrentRotation.Yaw)));
+	
+	FRotator Direction = FRotator(
+		
+		InputVector.X == 0.0f ? // Если есть нажатие вперед
+		
+			FMath::IsNearlyZero(CurrentRotation.Pitch, 0.5f) ?
+				0.0f :
+				CurrentRotation.Pitch / FMath::Abs(CurrentRotation.Pitch) * -1.0f : // нормализованный обратный X
+		
+		-InputVector.X,
+		
+		FMath::IsNearlyZero(DeltaYaw) ? 0.0f : DeltaYaw / FMath::Abs(DeltaYaw),
+		
+		(InputVector.Y == 0.0f) ? 
+		
+			FMath::IsNearlyZero(CurrentRotation.Roll, 0.5f) ?
+				0.0f :
+				CurrentRotation.Roll / FMath::Abs(CurrentRotation.Roll) * -1.0f : // нормализованный обратный Y
+		
+		InputVector.Y
+		
+		);
+	
+	if(TurnValue)
+	{
+		if(InputVector.X != 0 || InputVector.Y != 0) // поворот камеры во время движения
+		{
+			Direction.Roll = TurnValue;
+		}
+	}
+
+	if(CurrentRotation.Equals(GetParallelGroundRotation(), 1.0f) && InputVector == FVector::ZeroVector)
+		return GetParallelGroundRotation();
+
+	const FRotator Delta = Direction * SpeedTurn * Smoothing;
+
+	FRotator TargetRotation = CurrentRotation + Delta;
+
+	// ограничения по наклону
+	const float MinAngleDegreesPitch = GetParallelGroundRotation().Pitch - ForwardAngle;
+	const float MaxAngleDegreesPitch = GetParallelGroundRotation().Pitch + ForwardAngle;
+
+	const float MinAngleDegreesRoll = GetParallelGroundRotation().Roll - RightAngle;
+	const float MaxAngleDegreesRoll = GetParallelGroundRotation().Roll + RightAngle;
+
+	TargetRotation.Pitch = FMath::ClampAngle(TargetRotation.Pitch, MinAngleDegreesPitch, MaxAngleDegreesPitch);
+	TargetRotation.Roll = FMath::ClampAngle(TargetRotation.Roll, MinAngleDegreesRoll, MaxAngleDegreesRoll);
+
+	// GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f | %f"), TargetRotation.Pitch, TargetRotation.Roll));
+	
+	return TargetRotation;
 }
