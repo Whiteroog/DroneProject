@@ -36,6 +36,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone movement|Reflection", meta = (ClampMin = 100.0f, UIMin = 100.0f, ClampMax = 1000.0f, UIMax = 1000.0f))
 	float MaxSpeedForReflection = 400.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone|Tilt angle", meta = (ClampMin = 10.0f, UIMin = 10.0f, ClampMax = 300.0f, UIMax = 300.0f))
+	float SpeedRotationYaw = 50.0f;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone|Tilt angle", meta = (ClampMin = 10.0f, UIMin = 10.0f, ClampMax = 100.0f, UIMax = 100.0f))
 	float SpeedTurn = 50.0f;
 	

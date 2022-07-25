@@ -104,7 +104,8 @@ void UDroneMovementComponent::SetVelocityByClamp(float DeltaTime, const FVector 
 	}
 	
 	const float CurrentMaxSpeed = GetLastInputVector().Z < -0.1 ? -GetGravityZ() : MaxSpeed;
-	const FVector Delta = Direction * CurrentMaxSpeed * Smoothing;
+	const FVector VelocityDelta = Direction * CurrentMaxSpeed;
+	const FVector Delta = VelocityDelta * Smoothing;
 
 	const FVector TargetVelocity = Velocity + Delta;
 
@@ -147,6 +148,7 @@ FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVect
 	return FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, AccelerationTurn);
 }
 
+// Рекомендуется выставить LockMeshToCamera = true, иначе дрон дрожит (проблема)
 FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVector InputVector) const
 {
 	const float Smoothing = AccelerationTurn * DeltaTime;
@@ -160,9 +162,12 @@ FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVecto
 		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
 	}
 
-	const float DeltaYaw = CachedDrone->GetControlRotation().Yaw - FRotator::ClampAxis(CurrentRotation.Yaw);
+	const float TargetYawRotation = FRotator::NormalizeAxis(CachedDrone->GetControlRotation().Yaw);
+	const float CurrentYawRotation = FRotator::NormalizeAxis(CurrentRotation.Yaw);
+	
+	const float DeltaYaw = FRotator::NormalizeAxis(TargetYawRotation - CurrentYawRotation);
 
-	GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("DeltaYaw: %f | %f - %f"), DeltaYaw, CachedDrone->GetControlRotation().Yaw, FRotator::ClampAxis(CurrentRotation.Yaw)));
+	GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("DeltaYaw: %f | %f - %f"), DeltaYaw, TargetYawRotation, CurrentYawRotation));
 	
 	FRotator Direction = FRotator(
 		
@@ -174,7 +179,7 @@ FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVecto
 		
 		-InputVector.X,
 		
-		FMath::IsNearlyZero(DeltaYaw) ? 0.0f : DeltaYaw / FMath::Abs(DeltaYaw),
+		FMath::IsNearlyZero(DeltaYaw, 1.0f) ? 0.0f : DeltaYaw / FMath::Abs(DeltaYaw),
 		
 		(InputVector.Y == 0.0f) ? 
 		
@@ -196,8 +201,14 @@ FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVecto
 
 	if(CurrentRotation.Equals(GetParallelGroundRotation(), 1.0f) && InputVector == FVector::ZeroVector)
 		return GetParallelGroundRotation();
+	
+	const FRotator RotationVelocity = FRotator(
+		Direction.Pitch * SpeedTurn,
+		Direction.Yaw * SpeedRotationYaw, // если вращение дрона по оси Z не привязана к камере, то вращение должно быть привязана к скорости наклона
+		Direction.Roll * SpeedTurn
+	);
 
-	const FRotator Delta = Direction * SpeedTurn * Smoothing;
+	const FRotator Delta = RotationVelocity * Smoothing;
 
 	FRotator TargetRotation = CurrentRotation + Delta;
 
@@ -210,8 +221,6 @@ FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVecto
 
 	TargetRotation.Pitch = FMath::ClampAngle(TargetRotation.Pitch, MinAngleDegreesPitch, MaxAngleDegreesPitch);
 	TargetRotation.Roll = FMath::ClampAngle(TargetRotation.Roll, MinAngleDegreesRoll, MaxAngleDegreesRoll);
-
-	// GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f | %f"), TargetRotation.Pitch, TargetRotation.Roll));
 	
 	return TargetRotation;
 }
