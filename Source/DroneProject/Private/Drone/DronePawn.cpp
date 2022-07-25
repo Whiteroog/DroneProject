@@ -89,6 +89,7 @@ void ADronePawn::Turn(float Value)
 		const float SpeedTurn = RotationCameraRate.Yaw * Value * DeltaTime;
 		AddControllerYawInput(SpeedTurn);
 
+		// если вращение по оси Z, дрон не будет привязан к контроллеру
 		FRotator ControlRotation = GetControlRotation();
 		const float MinAngleDegrees = GetActorRotation().Yaw - CameraYawAngleLimit;
 		const float MaxAngleDegrees = GetActorRotation().Yaw + CameraYawAngleLimit;
@@ -105,7 +106,8 @@ void ADronePawn::LookUp(float Value)
 	{
 		const float SpeedLookUp = RotationCameraRate.Pitch * Value * DeltaTime;
 		AddControllerPitchInput(SpeedLookUp);
-		
+
+		// ограничение камеры по оси X
 		FRotator ControlRotation = GetControlRotation();
 		const float MinAngleDegrees = GetActorRotation().Pitch - CameraPitchAngleLimit;
 		const float MaxAngleDegrees = GetActorRotation().Pitch + CameraPitchAngleLimit;

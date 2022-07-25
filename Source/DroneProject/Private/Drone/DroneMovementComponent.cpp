@@ -28,7 +28,7 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	// Изменение направление и вращение дрона
 	SetVelocityByClamp(DeltaTime, PendingInput);
-	const FRotator NewRotation = DroneTiltByClamp(DeltaTime, PendingInput);
+	const FRotator NewRotation = DroneTiltByInterp(DeltaTime, PendingInput);
 
 	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
@@ -59,6 +59,7 @@ void UDroneMovementComponent::MoveComponent(float DeltaTime, const FVector Delta
 
 	if (Hit.IsValidBlockingHit())
 	{
+		// если движемся меньше заданной скорости, то можем скользить, иначе отталкиваемся
 		if (Velocity.Size() < MaxSpeedForReflection)
 		{
 			HandleImpact(Hit, DeltaTime, Delta);
@@ -77,7 +78,7 @@ void UDroneMovementComponent::MoveComponent(float DeltaTime, const FVector Delta
 
 void UDroneMovementComponent::SetVelocityByInterp(float DeltaTime, const FVector InputVector)
 {
-	// Поворачиваем вектор
+	// Поворачиваем вектор, так как на вход подается вектор не сонаправленный
 	const FVector RotatedInputVector = GetParallelGroundRotation().RotateVector(InputVector);
 
 	// Если входящий вектор вниз,то винты не работают и дрон падает под действием гравитации
@@ -88,15 +89,15 @@ void UDroneMovementComponent::SetVelocityByInterp(float DeltaTime, const FVector
 }
 
 // Строгий набор скорости (второй метод)
-// Поворачиваем вектор
 void UDroneMovementComponent::SetVelocityByClamp(float DeltaTime, const FVector InputVector)
 {
 	const float Smoothing = Acceleration * DeltaTime;
 	
 	const FVector Direction = InputVector == FVector::ZeroVector ?
-		Velocity.GetSafeNormal() * -1.0f :								// Чтобы тормозить если есть ускорение
-		GetParallelGroundRotation().RotateVector(InputVector);
+		Velocity.GetSafeNormal() * -1.0f :								// обратный вектор ускорения, чтобы тормозить
+		GetParallelGroundRotation().RotateVector(InputVector);			// поворачиваем не сонаправленный вектор
 
+	// если остановились и не двигаемся
 	if(Velocity.IsNearlyZero(1.0f) && InputVector == FVector::ZeroVector)
 	{
 		Velocity = FVector::ZeroVector;
@@ -107,8 +108,8 @@ void UDroneMovementComponent::SetVelocityByClamp(float DeltaTime, const FVector 
 	const FVector VelocityDelta = Direction * CurrentMaxSpeed;
 	const FVector Delta = VelocityDelta * Smoothing;
 
+	// плавное ускорение
 	const FVector TargetVelocity = Velocity + Delta;
-
 	Velocity = TargetVelocity.GetClampedToSize(0.0f, CurrentMaxSpeed);
 }
 
@@ -121,11 +122,13 @@ FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVect
 {
 	FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
 
+	// привязка дрона к контроллеру
 	if(bLockMeshToCamera)
 	{
 		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
 	}
-	
+
+	// значение поворота
 	const float TurnValue = CachedDrone->GetTurnValue();
 
 	// Изначальное параллельное положение
@@ -139,7 +142,7 @@ FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVect
 
 	if (TurnValue != 0.0f)
 	{
-		// Когда летим и поворачивая камерой. Косметический наклон
+		// Когда летим, поворачивая камерой - даем угол наклона поворота. <Косметический наклон>
 		if (InputVector.X != 0 || InputVector.Y != 0)
 			TargetRotation.Roll = RightAngle * TurnValue;
 	}
@@ -162,49 +165,54 @@ FRotator UDroneMovementComponent::DroneTiltByClamp(float DeltaTime, const FVecto
 		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
 	}
 
+	// нормализуем ротаторы [-180; 180]
 	const float TargetYawRotation = FRotator::NormalizeAxis(CachedDrone->GetControlRotation().Yaw);
 	const float CurrentYawRotation = FRotator::NormalizeAxis(CurrentRotation.Yaw);
-	
+
+	// получаем знак направления поворота оси Y
 	const float DeltaYaw = FRotator::NormalizeAxis(TargetYawRotation - CurrentYawRotation);
 
 	GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("DeltaYaw: %f | %f - %f"), DeltaYaw, TargetYawRotation, CurrentYawRotation));
-	
+
+	// направление единичной длины ( u / |u| )
 	FRotator Direction = FRotator(
 		
-		InputVector.X == 0.0f ? // Если есть нажатие вперед
-		
-			FMath::IsNearlyZero(CurrentRotation.Pitch, 0.5f) ?
+		InputVector.X != 0.0f ? // Если есть нажатие вперед
+
+			-InputVector.X :
+
+			// иначе получаем знак обратного направления, чтобы выровняться
+			(FMath::IsNearlyZero(CurrentRotation.Pitch, 0.5f) ?
 				0.0f :
-				CurrentRotation.Pitch / FMath::Abs(CurrentRotation.Pitch) * -1.0f : // нормализованный обратный X
-		
-		-InputVector.X,
+				CurrentRotation.Pitch / FMath::Abs(CurrentRotation.Pitch) * -1.0f), // нормализованный обратный X
 		
 		FMath::IsNearlyZero(DeltaYaw, 1.0f) ? 0.0f : DeltaYaw / FMath::Abs(DeltaYaw),
 		
-		(InputVector.Y == 0.0f) ? 
+		(InputVector.Y != 0.0f) ? 
+
+			InputVector.Y :
 		
-			FMath::IsNearlyZero(CurrentRotation.Roll, 0.5f) ?
+			(FMath::IsNearlyZero(CurrentRotation.Roll, 0.5f) ?
 				0.0f :
-				CurrentRotation.Roll / FMath::Abs(CurrentRotation.Roll) * -1.0f : // нормализованный обратный Y
-		
-		InputVector.Y
-		
+				CurrentRotation.Roll / FMath::Abs(CurrentRotation.Roll) * -1.0f) // нормализованный обратный Y
+				
 		);
 	
 	if(TurnValue)
 	{
-		if(InputVector.X != 0 || InputVector.Y != 0) // поворот камеры во время движения
+		if(InputVector.X != 0 || InputVector.Y != 0)
 		{
 			Direction.Roll = TurnValue;
 		}
 	}
 
+	// если выровнялись и не двигаемся
 	if(CurrentRotation.Equals(GetParallelGroundRotation(), 1.0f) && InputVector == FVector::ZeroVector)
 		return GetParallelGroundRotation();
 	
 	const FRotator RotationVelocity = FRotator(
 		Direction.Pitch * SpeedTurn,
-		Direction.Yaw * SpeedRotationYaw, // если вращение дрона по оси Z не привязана к камере, то вращение должно быть привязана к скорости наклона
+		Direction.Yaw * SpeedRotationYaw, // если вращение дрона по оси Z не привязан к камере, то вращение должен быть привязан к собственной скорости
 		Direction.Roll * SpeedTurn
 	);
 
