@@ -87,21 +87,20 @@ void UDroneMovementComponent::SetVelocityByInterp(float DeltaTime, const FVector
 
 	// Чтобы текущие значение не высчитывалось на пределах
 	if(Velocity.Equals(NewVelocity, 0.1f))
+	{
 		Velocity = NewVelocity;
+		return;
+	}
 
 	// Векторная интерполяция
-	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, Acceleration); 
+	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, SpeedVelocity); 
 }
 
 FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVector InputVector) const
 {
+	FRotator Result = FRotator::ZeroRotator;
+	
 	FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
-
-	// привязка дрона к контроллеру
-	if(bLockMeshToCamera)
-	{
-		CurrentRotation.Yaw = GetParallelGroundRotation().Yaw;
-	}
 
 	// значение поворота
 	const float TurnValue = CachedDrone->GetTurnValue();
@@ -128,10 +127,24 @@ FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVect
 
 	// Чтобы текущие значение не высчитывалось на пределах
 	if(CurrentRotation.Equals(TargetRotation, 0.1f))
-		CurrentRotation = TargetRotation;
+	{
+		return TargetRotation;
+	}
 
-	// GEngine->AddOnScreenDebugMessage(2, 2.0f, FColor::Red, FString::Printf(TEXT("Rotation: %f | %f"), CurrentRotation.Yaw, TargetRotation.Yaw));
-	return FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, AccelerationTurn);
+	Result = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, SpeedTurn);
+
+	// привязка дрона к контроллеру
+	if(bLockMeshToCamera)
+	{
+		Result.Yaw = GetParallelGroundRotation().Yaw;
+	}
+	else
+	{
+		// Чтобы поворот дрона к камере проходил быстрее
+		Result.Yaw = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, SpeedRotationYaw).Yaw;
+	}
+
+	return Result;
 }
 
 FRotator UDroneMovementComponent::GetParallelGroundRotation() const
