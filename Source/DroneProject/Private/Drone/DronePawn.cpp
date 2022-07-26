@@ -7,10 +7,8 @@
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/PawnMovementComponent.h"
 
-// Sets default values
 ADronePawn::ADronePawn()
 {
-	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
@@ -23,9 +21,10 @@ ADronePawn::ADronePawn()
 	
 	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Skeletal mesh"));
 	SkeletalMeshComponent->SetupAttachment(RootComponent);
+	SkeletalMeshComponent->SetOwnerNoSee(true);
 	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	CameraComponent->SetupAttachment(SkeletalMeshComponent, FName("CameraSocket"));
+	CameraComponent->SetupAttachment(SkeletalMeshComponent);
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -39,21 +38,18 @@ ADronePawn::ADronePawn()
 	CachedDroneMovementComponent = StaticCast<UDroneMovementComponent*>(PawnMovementComponent);
 }
 
-// Called when the game starts or when spawned
-void ADronePawn::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-// Called every frame
 void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	LastControlRotation = GetSafeControlRotation();
+
 	// Отображение вращения Roll дрона
-	FRotator ControllerRotation = GetControlRotation();
-	ControllerRotation.Roll = GetActorRotation().Roll;
-	Controller->SetControlRotation(ControllerRotation);
+	SetSafeControlRotation(
+		FRotator(
+			LastControlRotation.Pitch,
+			LastControlRotation.Yaw,
+			GetActorRotation().Roll));	// changing
 }
 
 void ADronePawn::MoveForward(float Value)
@@ -91,12 +87,17 @@ void ADronePawn::Turn(float Value)
 		const float SpeedTurn = RotationCameraRate.Yaw * Value * DeltaTime;
 		AddControllerYawInput(SpeedTurn);
 
-		// если вращение по оси Z, дрон не будет привязан к контроллеру
-		FRotator ControlRotation = GetControlRotation();
+		// ограничение вращения контроллера по Yaw оси - если дрон не привязан к камере
 		const float MinAngleDegrees = GetActorRotation().Yaw - CameraYawAngleLimit;
 		const float MaxAngleDegrees = GetActorRotation().Yaw + CameraYawAngleLimit;
-		ControlRotation.Yaw = FMath::ClampAngle(ControlRotation.Yaw, MinAngleDegrees, MaxAngleDegrees);
-		Controller->SetControlRotation(ControlRotation);
+
+		const float YawControlRotation = FMath::ClampAngle(LastControlRotation.Yaw, MinAngleDegrees, MaxAngleDegrees);
+		
+		SetSafeControlRotation(
+			FRotator(
+				LastControlRotation.Pitch,
+				YawControlRotation,		// changing
+				LastControlRotation.Roll));
 	}
 }
 
@@ -109,23 +110,28 @@ void ADronePawn::LookUp(float Value)
 		const float SpeedLookUp = RotationCameraRate.Pitch * Value * DeltaTime;
 		AddControllerPitchInput(SpeedLookUp);
 
-		// ограничение камеры по оси X
-		FRotator ControlRotation = GetControlRotation();
+		// ограничение камеры по оси Pitch
 		const float MinAngleDegrees = GetActorRotation().Pitch - CameraPitchAngleLimit;
 		const float MaxAngleDegrees = GetActorRotation().Pitch + CameraPitchAngleLimit;
-		ControlRotation.Pitch = FMath::ClampAngle(ControlRotation.Pitch, MinAngleDegrees, MaxAngleDegrees);
-		Controller->SetControlRotation(ControlRotation);
+		
+		const float PitchControlRotation = FMath::ClampAngle(LastControlRotation.Pitch, MinAngleDegrees, MaxAngleDegrees);
+		SetSafeControlRotation(
+			FRotator(
+			PitchControlRotation,		// changing
+			LastControlRotation.Yaw,
+			LastControlRotation.Roll));
 	}
 }
 
-// Called to bind functionality to input
-void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void ADronePawn::SetSafeControlRotation(FRotator NewRotation) const
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	if(!IsValid(Controller))
+		return;
 
-	PlayerInputComponent->BindAxis("MoveForward", this, &ADronePawn::MoveForward);
-	PlayerInputComponent->BindAxis("MoveRight", this, &ADronePawn::MoveRight);
-	PlayerInputComponent->BindAxis("MoveUp", this, &ADronePawn::MoveUp);
-	PlayerInputComponent->BindAxis("Turn", this, &ADronePawn::Turn);
-	PlayerInputComponent->BindAxis("LookUp", this, &ADronePawn::LookUp);
+	Controller->SetControlRotation(NewRotation);
+}
+
+FRotator ADronePawn::GetSafeControlRotation() const
+{
+	return IsValid(Controller) ? Controller->GetControlRotation() : LastControlRotation;
 }

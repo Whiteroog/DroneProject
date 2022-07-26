@@ -39,29 +39,30 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
 	float CameraPitchAngleLimit = 45.0f;
+
+	virtual void Tick(float DeltaTime) override;
 	
 	ADronePawn();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	FORCEINLINE float GetTurnValue() const { return TurnValue; }
-
-protected:
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void MoveUp(float Value);
 	void Turn(float Value);
 	void LookUp(float Value);
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	
+	FORCEINLINE float GetTurnValue() const { return TurnValue; }
+	FORCEINLINE FRotator GetLastControlRotation() const { return LastControlRotation; }
 	
 private:
 	TWeakObjectPtr<class UDroneMovementComponent> CachedDroneMovementComponent;
 
+	// вводимое значение Yaw вращения
 	float TurnValue = 0.0f;
+
+	// последнее вводимое значение вращения контроллера
+	FRotator LastControlRotation = FRotator::ZeroRotator;
+
+	// установить вращение контроллеру с проверкой на его валидность
+	void SetSafeControlRotation(FRotator NewRotation) const;
+	FRotator GetSafeControlRotation() const;
 };
