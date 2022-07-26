@@ -25,13 +25,12 @@ ADronePawn::ADronePawn()
 	SkeletalMeshComponent->SetupAttachment(RootComponent);
 	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	CameraComponent->SetupAttachment(RootComponent);
-	CameraComponent->SetRelativeLocation(FVector(20, 0, -4));
+	CameraComponent->SetupAttachment(SkeletalMeshComponent, FName("CameraSocket"));
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
-	CameraComponent->bUsePawnControlRotation = false;
+	CameraComponent->bUsePawnControlRotation = true;
 
 	PawnMovementComponent = CreateDefaultSubobject<UPawnMovementComponent, UDroneMovementComponent>(TEXT("Movement component"));
 	PawnMovementComponent->SetUpdatedComponent(CollisionComponent);
@@ -50,8 +49,11 @@ void ADronePawn::BeginPlay()
 void ADronePawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-	CameraComponent->SetWorldRotation(FRotator(GetControlRotation().Pitch, GetControlRotation().Yaw, GetActorRotation().Roll));
+
+	// Отображение вращения Roll дрона
+	FRotator ControllerRotation = GetControlRotation();
+	ControllerRotation.Roll = GetActorRotation().Roll;
+	Controller->SetControlRotation(ControllerRotation);
 }
 
 void ADronePawn::MoveForward(float Value)

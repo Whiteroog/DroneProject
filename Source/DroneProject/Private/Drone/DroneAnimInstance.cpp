@@ -12,7 +12,6 @@ void UDroneAnimInstance::NativeBeginPlay()
 	CachedDrone = StaticCast<ADronePawn*>(TryGetPawnOwner());
 }
 
-// метод обновления пропеллеров работает в редакторе )
 void UDroneAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
