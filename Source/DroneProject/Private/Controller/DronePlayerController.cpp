@@ -6,11 +6,16 @@
 #include "Drone/DronePawn.h"
 #include "Containers/Array.h"
 
+ADronePlayerController::ADronePlayerController()
+{
+	CountSpawningDrones = BeginCountSpawningDrones;
+}
+
 void ADronePlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
 
-	GEngine->AddOnScreenDebugMessage(4, 100.0f, FColor::Red, FString::Printf(TEXT("IndexDrone: %i | Count drones: %i"), IndexCurrentDrone, SelfDrones.Num()));
+	GEngine->AddOnScreenDebugMessage(4, 100.0f, FColor::Red, FString::Printf(TEXT("CountSpawningDrones: %i | Count drones: %i"), CountSpawningDrones, SelfDrones.Num()));
 
     if(!IsValid(InPawn))
     	return;
@@ -81,7 +86,7 @@ void ADronePlayerController::LaunchDrone()
 	if(CurrentTypePawn != ECurrentTypePawn::Character)
 		return;
 
-	if(SelfDrones.Num() >= CountSpawningDrones)
+	if(CountSpawningDrones <= 0)
 		return;
 
 	if(!SelfCharacter.IsValid())
@@ -96,8 +101,8 @@ void ADronePlayerController::LaunchDrone()
 
 	ADronePawn* SpawnedDrone = Cast<ADronePawn>(GetWorld()->SpawnActor(SubclassDronePawn, &SpawningLocation, &SpawningRotation));
 	IndexCurrentDrone = SelfDrones.Add(SpawnedDrone);
-
-	CurrentTypePawn = ECurrentTypePawn::Drone;
+	
+	CountSpawningDrones--;
 	Possess(SelfDrones[IndexCurrentDrone]);
 }
 
@@ -112,7 +117,6 @@ void ADronePlayerController::ConnectionToLaunchedDrone()
 		return;
 	}
 
-	CurrentTypePawn = ECurrentTypePawn::Drone;
 	Possess(SelfDrones[IndexCurrentDrone]);
 }
 
@@ -124,7 +128,6 @@ void ADronePlayerController::BackToPlayer()
 	if(!SelfCharacter.IsValid())
 		return;
 
-	CurrentTypePawn = ECurrentTypePawn::Character;
 	Possess(SelfCharacter.Get());
 }
 
@@ -135,8 +138,6 @@ void ADronePlayerController::SelfDestruct()
 
 	if(!SelfCharacter.IsValid())
 		return;
-
-	CurrentTypePawn = ECurrentTypePawn::Character;
 	
 	Possess(SelfCharacter.Get());
 	

@@ -22,6 +22,9 @@ UCLASS()
 class DRONEPROJECT_API ADronePlayerController : public APlayerController
 {
 	GENERATED_BODY()
+	
+public:
+	ADronePlayerController();
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
@@ -34,7 +37,7 @@ protected:
     FVector DefaultDroneCollisionExtend = FVector(50, 50, 20);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
-	int CountSpawningDrones = 3;
+	int BeginCountSpawningDrones = 3;
 	
 	virtual void SetPawn(APawn* InPawn) override;
 	virtual void SetupInputComponent() override;
@@ -48,6 +51,8 @@ private:
 	void SelfDestruct();
 
 	ECurrentTypePawn CurrentTypePawn = ECurrentTypePawn::Character;
+
+	int CountSpawningDrones = 0;
 	
 	TWeakObjectPtr< class AThirdPersonCharacter > SelfCharacter;
 	
