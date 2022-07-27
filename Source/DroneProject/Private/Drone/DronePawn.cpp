@@ -52,6 +52,17 @@ void ADronePawn::Tick(float DeltaTime)
 			GetActorRotation().Roll));	// changing
 }
 
+void ADronePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	PlayerInputComponent->BindAxis("MoveForward", this, &ADronePawn::MoveForward);
+	PlayerInputComponent->BindAxis("MoveRight", this, &ADronePawn::MoveRight);
+	PlayerInputComponent->BindAxis("MoveUp", this, &ADronePawn::MoveUp);
+	PlayerInputComponent->BindAxis("TurnRate", this, &ADronePawn::TurnRate);
+	PlayerInputComponent->BindAxis("LookUpRate", this, &ADronePawn::LookUpRate);
+}
+
 void ADronePawn::MoveForward(float Value)
 {
 	if (Value != 0.0f)
@@ -76,7 +87,7 @@ void ADronePawn::MoveUp(float Value)
 	}
 }
 
-void ADronePawn::Turn(float Value)
+void ADronePawn::TurnRate(float Value)
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
@@ -99,7 +110,7 @@ void ADronePawn::Turn(float Value)
 	}
 }
 
-void ADronePawn::LookUp(float Value)
+void ADronePawn::LookUpRate(float Value)
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 	
