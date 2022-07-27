@@ -12,7 +12,7 @@ ADronePawn::ADronePawn()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("Collision"));
-	CollisionComponent->SetBoxExtent(FVector(50, 50, 20));
+	CollisionComponent->SetBoxExtent(DroneCollisionExtend);
 	CollisionComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
 	RootComponent = CollisionComponent;
 

@@ -31,6 +31,9 @@ protected:
 	FVector SpawningOffset = FVector(200.0f, 0.0f, 50.0f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
+    FVector DefaultDroneCollisionExtend = FVector(50, 50, 20);
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
 	int CountSpawningDrones = 3;
 	
 	virtual void SetPawn(APawn* InPawn) override;
@@ -50,4 +53,6 @@ private:
 	
 	TArray< ADronePawn* > SelfDrones = TArray< ADronePawn* >();
 	int IndexCurrentDrone = 0;
+
+	bool IsObstacle(FVector ActorLocation, FVector SpawningLocation, FRotator SpawningRotation) const;
 };

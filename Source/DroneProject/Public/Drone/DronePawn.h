@@ -30,17 +30,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UPawnMovementComponent* PawnMovementComponent;
 
-	// Скорость вращения
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Camera")
-	FRotator RotationCameraRate = FRotator(45.0f, 45.0f, 0.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraYawAngleLimit = 45.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
-	float CameraPitchAngleLimit = 45.0f;
-
 	ADronePawn();
+
+	FORCEINLINE FVector GetDroneCollisionExtend() const { return DroneCollisionExtend; }
 
 	FRotator Internal_ConsumeControlInputRotation();
 	FORCEINLINE FRotator Internal_GetLastControlInputRotation() const { return LastControlInputRotation; }
@@ -48,6 +40,20 @@ public:
 	FORCEINLINE FRotator GetLastControlRotation() const { return LastControlRotation; }
 
 protected:
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone | Collision")
+	FVector DroneCollisionExtend = FVector(50, 50, 20);
+	
+	// Скорость вращения
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone | Camera")
+	FRotator RotationCameraRate = FRotator(45.0f, 45.0f, 0.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone | Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	float CameraYawAngleLimit = 45.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Drone | Camera", meta = (ClampMin = 5.0f, UIMin = 5.0f, ClampMax = 179.0f, UIMax = 179.0f))
+	float CameraPitchAngleLimit = 45.0f;
+	
 	virtual void Tick(float DeltaTime) override;
 	
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
