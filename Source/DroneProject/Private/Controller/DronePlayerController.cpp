@@ -9,8 +9,13 @@ void ADronePlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
 
-	if(InPawn->IsA<AThirdPersonCharacter>())
-		CharacterOwner = Cast<AThirdPersonCharacter>(InPawn);
+    if(InPawn == nullptr)
+    	return;
+	
+	CurrentOwner = InPawn;
+
+	if(CurrentOwner->IsA<AThirdPersonCharacter>())
+		CharacterOwner = Cast<AThirdPersonCharacter>(CurrentOwner.Get());
 }
 
 void ADronePlayerController::SetupInputComponent()
@@ -24,19 +29,28 @@ void ADronePlayerController::SetupInputComponent()
 
 void ADronePlayerController::LaunchDrone()
 {
+	if(DroneOwner.IsValid())
+		return;
+	
+	if(!CurrentOwner->IsA<AThirdPersonCharacter>())
+		return;
+	
 	if(!CharacterOwner.IsValid())
 		return;
 
 	const FVector SpawningOffset = FVector(200.0f, 0.0f, 50.0f);
-	const FRotator SpawningRotation = CharacterOwner->GetActorRotation();
-	const FVector SpawningLocation = CharacterOwner->GetActorLocation() + SpawningRotation.RotateVector(SpawningOffset);
+	const FRotator SpawningRotation = CurrentOwner->GetActorRotation();
+	const FVector SpawningLocation = CurrentOwner->GetActorLocation() + SpawningRotation.RotateVector(SpawningOffset);
 	
 	DroneOwner = GetWorld()->SpawnActor<ADronePawn>(SpawningLocation, SpawningRotation);
-	// Possess(DroneOwner.Get());
+	Possess(DroneOwner.Get());
 }
 
 void ADronePlayerController::ConnectionToLaunchedDrone()
 {
+	if(!CurrentOwner->IsA<AThirdPersonCharacter>())
+		return;
+	
 	if(!CharacterOwner.IsValid() || !DroneOwner.IsValid())
 		return;
 	
@@ -45,8 +59,11 @@ void ADronePlayerController::ConnectionToLaunchedDrone()
 
 void ADronePlayerController::BackToPlayer()
 {
+	if(!CurrentOwner->IsA<ADronePawn>())
+		return;
+	
 	if(!CharacterOwner.IsValid() || !DroneOwner.IsValid())
 		return;
-
+	
 	Possess(CharacterOwner.Get());
 }

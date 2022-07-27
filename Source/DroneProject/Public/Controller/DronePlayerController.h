@@ -23,6 +23,8 @@ private:
 	void ConnectionToLaunchedDrone();
 	void BackToPlayer();
 	
+	TSoftObjectPtr< class APawn > CurrentOwner;
+	
 	TSoftObjectPtr< class AThirdPersonCharacter > CharacterOwner;
 	TSoftObjectPtr< class ADronePawn > DroneOwner;
 };
