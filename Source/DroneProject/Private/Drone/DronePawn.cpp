@@ -79,8 +79,6 @@ void ADronePawn::MoveUp(float Value)
 void ADronePawn::Turn(float Value)
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
-
-	TurnValue = Value;
 	
 	if(Value != 0.0f)
 	{
@@ -123,6 +121,13 @@ void ADronePawn::LookUp(float Value)
 	}
 }
 
+void ADronePawn::AddControllerYawInput(float Val)
+{
+	Super::AddControllerYawInput(Val);
+
+	ControlInputRotation.Yaw += Val;
+}
+
 void ADronePawn::SetSafeControlRotation(FRotator NewRotation) const
 {
 	if(!IsValid(Controller))
@@ -134,4 +139,11 @@ void ADronePawn::SetSafeControlRotation(FRotator NewRotation) const
 FRotator ADronePawn::GetSafeControlRotation() const
 {
 	return IsValid(Controller) ? Controller->GetControlRotation() : LastControlRotation;
+}
+
+FRotator ADronePawn::Internal_ConsumeControlInputRotation()
+{
+	LastControlInputRotation = ControlInputRotation;
+	ControlInputRotation = FRotator::ZeroRotator;
+	return LastControlInputRotation;
 }

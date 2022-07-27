@@ -22,6 +22,9 @@ public:
 	// метод отскока от любой стены
 	void Rebound(const FHitResult &Hit);
 
+	FRotator ConsumeControlInputRotation() const;
+	FRotator GetLastControlInputRotation() const;
+	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drone movement | Speed", meta = (ClampMin = 200.0f, UIMin = 200.0f, ClampMax = 2000.0f, UIMax = 2000.0f))
 	float MaxSpeed = 1200.0f;
@@ -68,14 +71,8 @@ private:
 	void SetVelocityByInterp(float DeltaTime, const FVector InputVector);
 
 	// плавный наклон дрона
-	FRotator DroneTiltByInterp(float DeltaTime, const FVector InputVector) const;
+	FRotator DroneTiltByInterp(float DeltaTime, const FVector InputVector, const FRotator InputRotation) const;
 
 	// константа хранящая текущий угол поворота дрона и нулевые координаты
 	FRotator GetParallelGroundRotation() const;
-	
-	// // линейное обновление скорости (проблема - на концах ограничения дрон не может из-за большой дельты встать в предел)
-	// void SetVelocityByClamp(float DeltaTime, const FVector InputVector);
-	//
-	// // линейный наклон дрона (проблема - не привязанный дрон к контроллеру по оси Y, дрожит при движении из-зи большой дельты между контроллером и дроном)
-	// FRotator DroneTiltByClamp(float DeltaTime, const FVector InputVector) const;
 };

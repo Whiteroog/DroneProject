@@ -49,19 +49,26 @@ public:
 	void MoveUp(float Value);
 	void Turn(float Value);
 	void LookUp(float Value);
-	
-	FORCEINLINE float GetTurnValue() const { return TurnValue; }
+
+	FRotator Internal_ConsumeControlInputRotation();
+	FORCEINLINE FRotator Internal_GetLastControlInputRotation() const { return LastControlInputRotation; }
+
 	FORCEINLINE FRotator GetLastControlRotation() const { return LastControlRotation; }
+
+protected:
+	virtual void AddControllerYawInput(float Val) override;
 	
 private:
 	TWeakObjectPtr<class UDroneMovementComponent> CachedDroneMovementComponent;
+	
 
-	// вводимое значение Yaw вращения
-	float TurnValue = 0.0f;
-
-	// последнее вводимое значение вращения контроллера
+	// вводимое значение вращения контроллера
+	FRotator ControlInputRotation = FRotator::ZeroRotator;
+	FRotator LastControlInputRotation = FRotator::ZeroRotator
+	
+	// последнее считанное значение вращения контроллера
 	FRotator LastControlRotation = FRotator::ZeroRotator;
-
+	
 	// установить вращение контроллеру с проверкой на его валидность
 	void SetSafeControlRotation(FRotator NewRotation) const;
 	FRotator GetSafeControlRotation() const;

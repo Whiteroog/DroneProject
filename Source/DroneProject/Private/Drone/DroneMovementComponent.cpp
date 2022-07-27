@@ -26,10 +26,13 @@ void UDroneMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	// Получаем входящий голый вектор (и очищаем), нормализуя до единичной длины
 	const FVector PendingInput = ConsumeInputVector().GetClampedToMaxSize(1.0f);
+	
+	FRotator PendingRotationInput = ConsumeControlInputRotation();
+	PendingRotationInput.Yaw = FMath::Clamp(PendingRotationInput.Yaw, -1.0f, 1.0f);
 
 	// Изменение направление и вращение дрона
 	SetVelocityByInterp(DeltaTime, PendingInput);
-	const FRotator NewRotation = DroneTiltByInterp(DeltaTime, PendingInput);
+	const FRotator NewRotation = DroneTiltByInterp(DeltaTime, PendingInput, PendingRotationInput);
 
 	// Шаблонное перемещение объекта с использованием функции скольжения
 	const FVector Delta = Velocity * DeltaTime;
@@ -50,7 +53,7 @@ void UDroneMovementComponent::Rebound(const FHitResult& Hit)
 void UDroneMovementComponent::MoveComponent(float DeltaTime, const FVector Delta, const FRotator NewRotation)
 {
 	// Не двигаемся если есть небольшое отклонение или не поворачиваем камеру
-	if (Delta.IsNearlyZero() && NewRotation.IsNearlyZero() && !CachedDrone->GetTurnValue())
+	if (Delta.IsNearlyZero() && NewRotation.IsNearlyZero() && !GetLastControlInputRotation().Yaw)
 	{
 		return;
 	}
@@ -96,14 +99,14 @@ void UDroneMovementComponent::SetVelocityByInterp(float DeltaTime, const FVector
 	Velocity = FMath::VInterpTo(Velocity, NewVelocity, DeltaTime, SpeedVelocity); 
 }
 
-FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVector InputVector) const
+FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVector InputVector, const FRotator InputRotation) const
 {
 	FRotator Result = FRotator::ZeroRotator;
 	
 	FRotator CurrentRotation = UpdatedComponent->GetComponentRotation();
 
 	// значение поворота
-	const float TurnValue = CachedDrone->GetTurnValue();
+	const float TurnValue = InputRotation.Yaw;
 
 	// Изначальное параллельное положение
 	FRotator TargetRotation = GetParallelGroundRotation();
@@ -150,4 +153,14 @@ FRotator UDroneMovementComponent::DroneTiltByInterp(float DeltaTime, const FVect
 FRotator UDroneMovementComponent::GetParallelGroundRotation() const
 {
 	return FRotator(0.0f, CachedDrone->GetLastControlRotation().Yaw, 0.0f);
+}
+
+FRotator UDroneMovementComponent::ConsumeControlInputRotation() const
+{
+	return CachedDrone.IsValid() ? CachedDrone->Internal_ConsumeControlInputRotation() : FRotator::ZeroRotator;
+}
+
+FRotator UDroneMovementComponent::GetLastControlInputRotation() const
+{
+	return CachedDrone.IsValid() ? CachedDrone->Internal_GetLastControlInputRotation() : FRotator::ZeroRotator;
 }
