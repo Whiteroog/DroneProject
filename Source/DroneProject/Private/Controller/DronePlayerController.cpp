@@ -154,9 +154,10 @@ bool ADronePlayerController::IsObstacle(FVector ActorLocation, FVector SpawningL
 	
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(SelfCharacter.Get());
-	
-	// FVector DroneCollisionExtend = SelfCharacter.Get()->GetClass()->GetDefaultObject<ADronePawn>()->GetDroneCollisionExtend(); -- Crach
-	FCollisionShape CollisionBox = FCollisionShape::MakeBox( DefaultDroneCollisionExtend );
+
+	ADronePawn* DroneClass = Cast<ADronePawn>(SubclassDronePawn->GetDefaultObject());
+	FVector DroneCollisionExtend = IsValid(DroneClass) ? DroneClass->GetDroneCollisionExtend() : DroneCollisionExtendIfClassNotValid;
+	FCollisionShape CollisionBox = FCollisionShape::MakeBox( DroneCollisionExtend );
 	
 	return GetWorld()->SweepSingleByChannel(HitResult, ActorLocation, SpawningLocation, SpawningRotation.Quaternion(), ECC_Visibility, CollisionBox, CollisionParams, FCollisionResponseParams::DefaultResponseParam);
 }

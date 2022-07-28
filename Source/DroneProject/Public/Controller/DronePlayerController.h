@@ -34,7 +34,7 @@ protected:
 	FVector SpawningOffset = FVector(200.0f, 0.0f, 50.0f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
-    FVector DefaultDroneCollisionExtend = FVector(50, 50, 20);
+    FVector DroneCollisionExtendIfClassNotValid = FVector(50, 50, 20);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
 	int BeginCountSpawningDrones = 3;
