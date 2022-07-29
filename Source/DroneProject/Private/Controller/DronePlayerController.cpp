@@ -3,6 +3,7 @@
 
 #include "Controller/DronePlayerController.h"
 #include "Character/ThirdPersonCharacter.h"
+#include "Components/CapsuleComponent.h"
 #include "Drone/DronePawn.h"
 #include "Containers/Array.h"
 
@@ -62,7 +63,7 @@ void ADronePlayerController::ToNextDrone()
 	{
 		IndexCurrentDrone = NextIndex;
 		CurrentTypePawn = ECurrentTypePawn::Drone;
-		Possess(SelfDrones[IndexCurrentDrone]);
+		Possess(SelfDrones[IndexCurrentDrone].Get());
 	}
 }
 
@@ -77,13 +78,16 @@ void ADronePlayerController::ToPreviousDrone()
 	{
 		IndexCurrentDrone = PreviousIndex;
 		CurrentTypePawn = ECurrentTypePawn::Drone;
-		Possess(SelfDrones[IndexCurrentDrone]);
+		Possess(SelfDrones[IndexCurrentDrone].Get());
 	}
 }
 
 void ADronePlayerController::LaunchDrone()
 {
 	if(CurrentTypePawn != ECurrentTypePawn::Character)
+		return;
+
+	if(!IsValid(SubclassDronePawn))
 		return;
 
 	if(CountSpawningDrones <= 0)
@@ -93,17 +97,22 @@ void ADronePlayerController::LaunchDrone()
 		return;
 	
 	const FRotator SpawningRotation = SelfCharacter->GetActorRotation();
-	const FVector ActorLocation = SelfCharacter->GetActorLocation();
-	const FVector SpawningLocation = ActorLocation + SpawningRotation.RotateVector(SpawningOffset);
 
-	if(IsObstacle(ActorLocation, SpawningLocation, SpawningRotation))
+	const ADronePawn* DroneClass = GetDefault<ADronePawn>(SubclassDronePawn.Get());
+	const FVector DroneCollisionExtend = IsValid(DroneClass) ? DroneClass->GetDroneCollisionExtend() : DefaultDroneCollisionExtend;
+	
+	const FVector StartSpawningOffset = FVector( SelfCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius() + DroneCollisionExtend.X, 0.0f, DroneCollisionExtend.Z );
+	const FVector StartSpawningLocation = SelfCharacter->GetActorLocation() + SpawningRotation.RotateVector(StartSpawningOffset);
+	const FVector SpawningLocation = StartSpawningLocation + SpawningRotation.RotateVector(SpawningOffset);
+
+	if(IsObstacle(StartSpawningLocation, SpawningLocation, SpawningRotation, DroneCollisionExtend))
 		return;
 
-	ADronePawn* SpawnedDrone = Cast<ADronePawn>(GetWorld()->SpawnActor(SubclassDronePawn, &SpawningLocation, &SpawningRotation));
+	ADronePawn* SpawnedDrone = StaticCast<ADronePawn*>(GetWorld()->SpawnActor(SubclassDronePawn, &SpawningLocation, &SpawningRotation));
 	IndexCurrentDrone = SelfDrones.Add(SpawnedDrone);
 	
 	CountSpawningDrones--;
-	Possess(SelfDrones[IndexCurrentDrone]);
+	Possess(SelfDrones[IndexCurrentDrone].Get());
 }
 
 void ADronePlayerController::ConnectionToLaunchedDrone()
@@ -117,7 +126,7 @@ void ADronePlayerController::ConnectionToLaunchedDrone()
 		return;
 	}
 
-	Possess(SelfDrones[IndexCurrentDrone]);
+	Possess(SelfDrones[IndexCurrentDrone].Get());
 }
 
 void ADronePlayerController::BackToPlayer()
@@ -148,16 +157,14 @@ void ADronePlayerController::SelfDestruct()
 		--IndexCurrentDrone;
 }
 
-bool ADronePlayerController::IsObstacle(FVector ActorLocation, FVector SpawningLocation, FRotator SpawningRotation) const
+bool ADronePlayerController::IsObstacle(const FVector StartSpawningLocation, const FVector SpawningLocation, const FRotator SpawningRotation, const FVector DroneSize) const
 {
 	FHitResult HitResult;
 	
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(SelfCharacter.Get());
-
-	ADronePawn* DroneClass = Cast<ADronePawn>(SubclassDronePawn->GetDefaultObject());
-	FVector DroneCollisionExtend = IsValid(DroneClass) ? DroneClass->GetDroneCollisionExtend() : DroneCollisionExtendIfClassNotValid;
-	FCollisionShape CollisionBox = FCollisionShape::MakeBox( DroneCollisionExtend );
 	
-	return GetWorld()->SweepSingleByChannel(HitResult, ActorLocation, SpawningLocation, SpawningRotation.Quaternion(), ECC_Visibility, CollisionBox, CollisionParams, FCollisionResponseParams::DefaultResponseParam);
+	FCollisionShape CollisionBox = FCollisionShape::MakeBox( DroneSize );
+	
+	return GetWorld()->SweepSingleByChannel(HitResult, StartSpawningLocation, SpawningLocation, SpawningRotation.Quaternion(), ECC_Visibility, CollisionBox, CollisionParams, FCollisionResponseParams::DefaultResponseParam);
 }

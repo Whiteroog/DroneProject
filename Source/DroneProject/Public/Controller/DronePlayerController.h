@@ -34,7 +34,7 @@ protected:
 	FVector SpawningOffset = FVector(200.0f, 0.0f, 50.0f);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
-    FVector DroneCollisionExtendIfClassNotValid = FVector(50, 50, 20);
+    FVector DefaultDroneCollisionExtend = FVector(50, 50, 20);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drone | Spawning")
 	int BeginCountSpawningDrones = 3;
@@ -56,8 +56,9 @@ private:
 	
 	TWeakObjectPtr< class AThirdPersonCharacter > SelfCharacter;
 	
-	TArray< ADronePawn* > SelfDrones = TArray< ADronePawn* >();
+	TArray< TWeakObjectPtr<class ADronePawn> > SelfDrones;
 	int IndexCurrentDrone = 0;
 
-	bool IsObstacle(FVector ActorLocation, FVector SpawningLocation, FRotator SpawningRotation) const;
+	bool IsObstacle(const FVector StartSpawningLocation, const FVector SpawningLocation, const FRotator SpawningRotation, const FVector
+	                DroneSize) const;
 };
